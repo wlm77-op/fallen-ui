@@ -16,27 +16,23 @@ local Library = {
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local function getFont()
     local ttfName = "UIFont.ttf"
     local fontConfigName = "UIFont.font"
     local fontUrl = "https://raw.githubusercontent.com/wlm77-op/fallen-ui/refs/heads/main/Assets/Font.ttf"
-
     if writefile and readfile and isfile and getcustomasset then
         if isfile(ttfName) then delfile(ttfName) end
         if isfile(fontConfigName) then delfile(fontConfigName) end
-
         local success, content = pcall(function()
             return game:HttpGet(fontUrl)
         end)
-
         if not success or not content or content == "" then
             return Font.fromEnum(Enum.Font.Code)
         end
-
         writefile(ttfName, content)
         local ttfAsset = getcustomasset(ttfName)
-
         local fontStructure = {
             name = "UIFont",
             faces = {{
@@ -47,34 +43,27 @@ local function getFont()
             }},
             fallbacks = {}
         }
-
         writefile(fontConfigName, HttpService:JSONEncode(fontStructure))
         local fontAsset = getcustomasset(fontConfigName)
         return Font.new(fontAsset, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
     end
-
     return Font.fromEnum(Enum.Font.Code)
 end
 
 local function getImage()
     local Name = "photo.jpg"
     local Url = "https://raw.githubusercontent.com/wlm77-op/fallen-ui/refs/heads/main/Assets/worker.jpg"
-
     if writefile and isfile and getcustomasset then
         if isfile(Name) then delfile(Name) end
-
         local success, content = pcall(function()
             return game:HttpGet(Url)
         end)
-
         if not success or not content or content == "" then
             return ""
         end
-
         writefile(Name, content)
         return getcustomasset(Name)
     end
-
     return ""
 end
 
@@ -87,12 +76,186 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
+local NotifGui = Instance.new("ScreenGui")
+NotifGui.Name = "Notfications"
+NotifGui.Parent = CoreGui
+NotifGui.ResetOnSpawn = false
+NotifGui.IgnoreGuiInset = true
+NotifGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
 local function CreateObj(ClassName, Params)
     local Obj = Instance.new(ClassName)
     for i, v in pairs(Params) do
         Obj[i] = v
     end
     return Obj
+end
+
+local NotifContainer = CreateObj("Frame", {
+    Parent = NotifGui,
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    AnchorPoint = Vector2.new(0, 0),
+    Position = UDim2.new(0, 12, 0, 12),
+    Size = UDim2.new(0, 260, 1, -24),
+})
+
+CreateObj("UIListLayout", {
+    Parent = NotifContainer,
+    FillDirection = Enum.FillDirection.Vertical,
+    HorizontalAlignment = Enum.HorizontalAlignment.Left,
+    VerticalAlignment = Enum.VerticalAlignment.Top,
+    Padding = UDim.new(0, 6),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+local TAG_COLORS = {
+    red    = "ff4444",
+    green  = "44ff88",
+    yellow = "ffdd44",
+    blue   = "44aaff",
+    orange = "ff8833",
+    white  = "ffffff",
+    gray   = "aaaaaa",
+    purple = "aa66ff",
+    cyan   = "44ffee",
+}
+
+local function parseRichTags(str)
+    str = str:gsub("{(%a+)}(.-)({/%1})", function(tag, content)
+        local hex = TAG_COLORS[tag:lower()]
+        if hex then
+            return ('<font color="#' .. hex .. '">' .. content .. "</font>")
+        end
+        return content
+    end)
+    str = str:gsub("{(#%x%x%x%x%x%x)}(.-)({/%1})", function(hex, content)
+        return ('<font color="' .. hex .. '">' .. content .. "</font>")
+    end)
+    return str
+end
+
+local notifCount = 0
+local ANIM_IN   = 0.18
+local ANIM_OUT  = 0.22
+local HOLD_DEF  = 4.5
+
+local function spawnNotif(rawText, duration)
+    duration   = tonumber(duration) or HOLD_DEF
+    notifCount = notifCount + 1
+
+    local Wrapper = CreateObj("Frame", {
+        Parent = NotifContainer,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        ClipsDescendants = false,
+        LayoutOrder = notifCount,
+    })
+
+    local Card = CreateObj("Frame", {
+        Parent = Wrapper,
+        BackgroundColor3 = Library.Configuration.Background,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(0, -300, 0, 0),
+        Size = UDim2.new(1, 0, 1, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        ClipsDescendants = false,
+    })
+
+    CreateObj("UIStroke", {
+        Parent = Card,
+        Color = Library.Configuration.Accent,
+        Thickness = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    })
+
+    CreateObj("Frame", {
+        Parent = Card,
+        BackgroundColor3 = Library.Configuration.ActiveToggle,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 0, 0),
+        Size = UDim2.new(0, 2, 1, 0),
+    })
+
+    local Inner = CreateObj("Frame", {
+        Parent = Card,
+        BackgroundColor3 = Library.Configuration.Inner,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 2, 0, 0),
+        Size = UDim2.new(1, -2, 1, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        ClipsDescendants = false,
+    })
+
+    CreateObj("UIPadding", {
+        Parent = Inner,
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        PaddingTop = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 8),
+    })
+
+    CreateObj("TextLabel", {
+        Parent = Inner,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        Text = parseRichTags(tostring(rawText)),
+        TextColor3 = Color3.fromRGB(200, 200, 200),
+        TextSize = 12,
+        FontFace = UIFont,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        RichText = true,
+    })
+
+    local BarTrack = CreateObj("Frame", {
+        Parent = Card,
+        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 2, 1, 0),
+        Size = UDim2.new(1, -2, 0, 2),
+    })
+
+    local BarFill = CreateObj("Frame", {
+        Parent = BarTrack,
+        BackgroundColor3 = Library.Configuration.ActiveToggle,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 1, 0),
+    })
+
+    TweenService:Create(Card,
+        TweenInfo.new(ANIM_IN, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { Position = UDim2.new(0, 0, 0, 0) }
+    ):Play()
+
+    TweenService:Create(BarFill,
+        TweenInfo.new(duration, Enum.EasingStyle.Linear),
+        { Size = UDim2.new(0, 0, 1, 0) }
+    ):Play()
+
+    task.delay(duration, function()
+        if not Card or not Card.Parent then return end
+        local slideOut = TweenService:Create(Card,
+            TweenInfo.new(ANIM_OUT, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { Position = UDim2.new(0, -300, 0, 0) }
+        )
+        slideOut:Play()
+        slideOut.Completed:Connect(function()
+            if Wrapper and Wrapper.Parent then
+                Wrapper:Destroy()
+            end
+        end)
+    end)
+end
+
+function Library:Notify(text, duration)
+    spawnNotif(text, duration)
 end
 
 local function hsvToRgb(h, s, v)
@@ -494,17 +657,11 @@ function Library:CreateWindow(Params)
     local function setActiveTab(tabName)
         if activeTab == tabName then return end
         activeTab = tabName
-
         for name, btn in pairs(tabButtons) do
             local isActive = (name == tabName)
-            btn.BackgroundColor3 = isActive
-                and Library.Configuration.TabActive
-                or Library.Configuration.TabInactive
-            btn.TextColor3 = isActive
-                and Library.Configuration.TabText
-                or Library.Configuration.TabTextDim
+            btn.BackgroundColor3 = isActive and Library.Configuration.TabActive or Library.Configuration.TabInactive
+            btn.TextColor3 = isActive and Library.Configuration.TabText or Library.Configuration.TabTextDim
         end
-
         for name, frame in pairs(tabContents) do
             frame.Visible = (name == tabName)
         end
@@ -520,8 +677,7 @@ function Library:CreateWindow(Params)
 
     UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
-        if input.UserInputType == Enum.UserInputType.Keyboard
-        and input.KeyCode == Window.ToggleKeybind then
+        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Window.ToggleKeybind then
             guiVisible = not guiVisible
             ScreenGui.Enabled = guiVisible
         end
@@ -529,9 +685,7 @@ function Library:CreateWindow(Params)
 
     function Window:AddTab(name)
         local textService = game:GetService("TextService")
-        local textSize = textService:GetTextSize(
-            name, 12, Enum.Font.Code, Vector2.new(1000, 28)
-        )
+        local textSize = textService:GetTextSize(name, 12, Enum.Font.Code, Vector2.new(1000, 28))
         local btnWidth = math.max(textSize.X + 16, 40)
 
         local TabBtn = CreateObj("TextButton", {
@@ -750,7 +904,6 @@ function Library:CreateWindow(Params)
                 function TitleObj:AddKeyPicker(KParams)
                     local DefaultKey = KParams.Key      or Enum.KeyCode.E
                     local KCallback  = KParams.Function or function() end
-
                     local CurrentKey = DefaultKey
                     local Listening  = false
 
@@ -801,7 +954,6 @@ function Library:CreateWindow(Params)
                         Listening         = true
                         KLabel.Text       = "..."
                         KLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-
                         local conn
                         conn = UserInputService.InputBegan:Connect(function(input, processed)
                             if processed then return end
@@ -819,30 +971,20 @@ function Library:CreateWindow(Params)
 
                     UserInputService.InputBegan:Connect(function(input, processed)
                         if processed or Listening then return end
-                        if input.UserInputType == Enum.UserInputType.Keyboard
-                        and input.KeyCode == CurrentKey then
+                        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == CurrentKey then
                             KCallback(input.KeyCode)
                         end
                     end)
 
                     local KP = {}
-
-                    function KP:Set(key)
-                        CurrentKey  = key
-                        KLabel.Text = key.Name
-                    end
-
-                    function KP:Get()
-                        return CurrentKey
-                    end
-
+                    function KP:Set(key) CurrentKey = key; KLabel.Text = key.Name end
+                    function KP:Get() return CurrentKey end
                     return KP
                 end
 
                 function TitleObj:AddColorPicker(CParams)
                     local DefaultColor = CParams.Default or CParams.Defualt or Color3.fromRGB(200, 200, 200)
                     local CCallback    = CParams.Function or function() end
-
                     local ch, cs, cv   = rgbToHsv(DefaultColor.R, DefaultColor.G, DefaultColor.B)
                     local CurrentColor  = DefaultColor
                     local popupOpen     = false
@@ -908,97 +1050,19 @@ function Library:CreateWindow(Params)
                             ClipsDescendants = true,
                         })
 
-                        local svWhite = CreateObj("Frame", {
-                            Parent          = svArea,
-                            Size            = UDim2.new(1, 0, 1, 0),
-                            BorderSizePixel = 0,
-                            ZIndex          = 52,
-                        })
+                        local svWhite = CreateObj("Frame", { Parent = svArea, Size = UDim2.new(1,0,1,0), BorderSizePixel = 0, ZIndex = 52 })
+                        CreateObj("UIGradient", { Parent = svWhite, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1) }), Rotation = 0 })
+                        local svBlack = CreateObj("Frame", { Parent = svArea, Size = UDim2.new(1,0,1,0), BorderSizePixel = 0, ZIndex = 53 })
+                        CreateObj("UIGradient", { Parent = svBlack, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,1), NumberSequenceKeypoint.new(1,0) }), Rotation = 90 })
 
-                        CreateObj("UIGradient", {
-                            Parent       = svWhite,
-                            Color        = ColorSequence.new({
-                                ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
-                                ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255)),
-                            }),
-                            Transparency = NumberSequence.new({
-                                NumberSequenceKeypoint.new(0, 0),
-                                NumberSequenceKeypoint.new(1, 1),
-                            }),
-                            Rotation = 0,
-                        })
-
-                        local svBlack = CreateObj("Frame", {
-                            Parent          = svArea,
-                            Size            = UDim2.new(1, 0, 1, 0),
-                            BorderSizePixel = 0,
-                            ZIndex          = 53,
-                        })
-
-                        CreateObj("UIGradient", {
-                            Parent       = svBlack,
-                            Color        = ColorSequence.new({
-                                ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
-                                ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0)),
-                            }),
-                            Transparency = NumberSequence.new({
-                                NumberSequenceKeypoint.new(0, 1),
-                                NumberSequenceKeypoint.new(1, 0),
-                            }),
-                            Rotation = 90,
-                        })
-
-                        local svCursor = CreateObj("Frame", {
-                            Parent           = svArea,
-                            BackgroundColor3 = Color3.fromRGB(255,255,255),
-                            BorderSizePixel  = 0,
-                            AnchorPoint      = Vector2.new(0.5, 0.5),
-                            Position         = UDim2.new(cs, 0, 1 - cv, 0),
-                            Size             = UDim2.new(0, 6, 0, 6),
-                            ZIndex           = 55,
-                        })
-                        CreateObj("UICorner", { Parent = svCursor, CornerRadius = UDim.new(1, 0) })
+                        local svCursor = CreateObj("Frame", { Parent = svArea, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(cs, 0, 1-cv, 0), Size = UDim2.new(0,6,0,6), ZIndex = 55 })
+                        CreateObj("UICorner", { Parent = svCursor, CornerRadius = UDim.new(1,0) })
                         CreateObj("UIStroke", { Parent = svCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
 
-                        local hueBar = CreateObj("Frame", {
-                            Parent           = popupFrame,
-                            BorderSizePixel  = 0,
-                            Position         = UDim2.new(0, 8, 0, PH + 12),
-                            Size             = UDim2.new(0, PW, 0, HH),
-                            ZIndex           = 51,
-                            ClipsDescendants = true,
-                        })
-
-                        CreateObj("UIGradient", {
-                            Parent = hueBar,
-                            Color  = ColorSequence.new({
-                                ColorSequenceKeypoint.new(0/6, Color3.fromHSV(0/6,1,1)),
-                                ColorSequenceKeypoint.new(1/6, Color3.fromHSV(1/6,1,1)),
-                                ColorSequenceKeypoint.new(2/6, Color3.fromHSV(2/6,1,1)),
-                                ColorSequenceKeypoint.new(3/6, Color3.fromHSV(3/6,1,1)),
-                                ColorSequenceKeypoint.new(4/6, Color3.fromHSV(4/6,1,1)),
-                                ColorSequenceKeypoint.new(5/6, Color3.fromHSV(5/6,1,1)),
-                                ColorSequenceKeypoint.new(6/6, Color3.fromHSV(0,  1,1)),
-                            }),
-                            Rotation = 0,
-                        })
-
-                        CreateObj("UIStroke", {
-                            Parent          = hueBar,
-                            Color           = Library.Configuration.Accent,
-                            Thickness       = 1,
-                            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        })
-
-                        local hueCursor = CreateObj("Frame", {
-                            Parent           = hueBar,
-                            BackgroundColor3 = Color3.fromRGB(255,255,255),
-                            BorderSizePixel  = 0,
-                            AnchorPoint      = Vector2.new(0.5, 0.5),
-                            Position         = UDim2.new(ch, 0, 0.5, 0),
-                            Size             = UDim2.new(0, 4, 1, 0),
-                            ZIndex           = 55,
-                        })
+                        local hueBar = CreateObj("Frame", { Parent = popupFrame, BorderSizePixel = 0, Position = UDim2.new(0, 8, 0, PH+12), Size = UDim2.new(0, PW, 0, HH), ZIndex = 51, ClipsDescendants = true })
+                        CreateObj("UIGradient", { Parent = hueBar, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0/6, Color3.fromHSV(0/6,1,1)), ColorSequenceKeypoint.new(1/6, Color3.fromHSV(1/6,1,1)), ColorSequenceKeypoint.new(2/6, Color3.fromHSV(2/6,1,1)), ColorSequenceKeypoint.new(3/6, Color3.fromHSV(3/6,1,1)), ColorSequenceKeypoint.new(4/6, Color3.fromHSV(4/6,1,1)), ColorSequenceKeypoint.new(5/6, Color3.fromHSV(5/6,1,1)), ColorSequenceKeypoint.new(6/6, Color3.fromHSV(0,1,1)) }), Rotation = 0 })
+                        CreateObj("UIStroke", { Parent = hueBar, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+                        local hueCursor = CreateObj("Frame", { Parent = hueBar, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(ch, 0, 0.5, 0), Size = UDim2.new(0,4,1,0), ZIndex = 55 })
                         CreateObj("UIStroke", { Parent = hueCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
 
                         local function applyColor()
@@ -1006,7 +1070,7 @@ function Library:CreateWindow(Params)
                             CurrentColor = Color3.new(r, g, b)
                             colorSwatch.BackgroundColor3 = CurrentColor
                             svArea.BackgroundColor3      = Color3.fromHSV(ch, 1, 1)
-                            svCursor.Position            = UDim2.new(cs, 0, 1 - cv, 0)
+                            svCursor.Position            = UDim2.new(cs, 0, 1-cv, 0)
                             hueCursor.Position           = UDim2.new(ch, 0, 0.5, 0)
                             CCallback(CurrentColor)
                         end
@@ -1014,14 +1078,7 @@ function Library:CreateWindow(Params)
                         local svDragging  = false
                         local hueDragging = false
 
-                        local svHit = CreateObj("TextButton", {
-                            Parent              = svArea,
-                            BackgroundTransparency = 1,
-                            BorderSizePixel     = 0,
-                            Size                = UDim2.new(1, 0, 1, 0),
-                            Text                = "",
-                            ZIndex              = 56,
-                        })
+                        local svHit = CreateObj("TextButton", { Parent = svArea, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
 
                         local function updateSV(inputX, inputY)
                             local abs  = svArea.AbsolutePosition
@@ -1031,20 +1088,9 @@ function Library:CreateWindow(Params)
                             applyColor()
                         end
 
-                        svHit.MouseButton1Down:Connect(function()
-                            svDragging = true
-                            local m = game.Players.LocalPlayer:GetMouse()
-                            updateSV(m.X, m.Y)
-                        end)
+                        svHit.MouseButton1Down:Connect(function() svDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateSV(m.X, m.Y) end)
 
-                        local hueHit = CreateObj("TextButton", {
-                            Parent              = hueBar,
-                            BackgroundTransparency = 1,
-                            BorderSizePixel     = 0,
-                            Size                = UDim2.new(1, 0, 1, 0),
-                            Text                = "",
-                            ZIndex              = 56,
-                        })
+                        local hueHit = CreateObj("TextButton", { Parent = hueBar, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
 
                         local function updateHue(inputX)
                             local abs  = hueBar.AbsolutePosition
@@ -1053,17 +1099,10 @@ function Library:CreateWindow(Params)
                             applyColor()
                         end
 
-                        hueHit.MouseButton1Down:Connect(function()
-                            hueDragging = true
-                            local m = game.Players.LocalPlayer:GetMouse()
-                            updateHue(m.X)
-                        end)
+                        hueHit.MouseButton1Down:Connect(function() hueDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateHue(m.X) end)
 
                         UserInputService.InputEnded:Connect(function(input)
-                            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                svDragging  = false
-                                hueDragging = false
-                            end
+                            if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false; hueDragging = false end
                         end)
 
                         UserInputService.InputChanged:Connect(function(input)
@@ -1090,8 +1129,7 @@ function Library:CreateWindow(Params)
                                     local abs  = popupFrame and popupFrame.AbsolutePosition
                                     local size = popupFrame and popupFrame.AbsoluteSize
                                     if not abs then return end
-                                    local inside = m.X >= abs.X and m.X <= abs.X + size.X
-                                             and m.Y >= abs.Y and m.Y <= abs.Y + size.Y
+                                    local inside = m.X >= abs.X and m.X <= abs.X + size.X and m.Y >= abs.Y and m.Y <= abs.Y + size.Y
                                     if not inside then
                                         popupOpen = false
                                         popupFrame:Destroy()
@@ -1104,29 +1142,13 @@ function Library:CreateWindow(Params)
                     end
 
                     SwatchBtn.MouseButton1Click:Connect(function()
-                        if popupOpen then
-                            popupOpen = false
-                            if popupFrame then popupFrame:Destroy(); popupFrame = nil end
-                        else
-                            popupOpen = true
-                            buildPopup()
-                        end
+                        if popupOpen then popupOpen = false; if popupFrame then popupFrame:Destroy(); popupFrame = nil end
+                        else popupOpen = true; buildPopup() end
                     end)
 
                     local CP2 = {}
-
-                    function CP2:Set(color)
-                        if typeof(color) ~= "Color3" then return end
-                        ch, cs, cv = rgbToHsv(color.R, color.G, color.B)
-                        CurrentColor = color
-                        colorSwatch.BackgroundColor3 = color
-                        CCallback(color)
-                    end
-
-                    function CP2:Get()
-                        return CurrentColor
-                    end
-
+                    function CP2:Set(color) if typeof(color) ~= "Color3" then return end; ch, cs, cv = rgbToHsv(color.R, color.G, color.B); CurrentColor = color; colorSwatch.BackgroundColor3 = color; CCallback(color) end
+                    function CP2:Get() return CurrentColor end
                     return CP2
                 end
 
@@ -1137,13 +1159,7 @@ function Library:CreateWindow(Params)
                 local Title    = Params.Title    or "Button"
                 local Callback = Params.Function or function() end
 
-                local Row = CreateObj("Frame", {
-                    Parent              = self.Content,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Size                = UDim2.new(1, 0, 0, 16),
-                    LayoutOrder         = #self.Content:GetChildren()
-                })
+                local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 16), LayoutOrder = #self.Content:GetChildren() })
 
                 local Btn = CreateObj("TextButton", {
                     Parent           = Row,
@@ -1160,23 +1176,11 @@ function Library:CreateWindow(Params)
                     ZIndex           = 5
                 })
 
-                CreateObj("UIStroke", {
-                    Parent          = Btn,
-                    Color           = Library.Configuration.Accent,
-                    Thickness       = 1,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-                })
-
-                Btn.MouseButton1Click:Connect(function()
-                    Callback()
-                end)
+                CreateObj("UIStroke", { Parent = Btn, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+                Btn.MouseButton1Click:Connect(function() Callback() end)
 
                 local Button = {}
-
-                function Button:SetTitle(text)
-                    Btn.Text = tostring(text)
-                end
-
+                function Button:SetTitle(text) Btn.Text = tostring(text) end
                 return Button
             end
 
@@ -1184,79 +1188,21 @@ function Library:CreateWindow(Params)
                 local Title    = Params.Title    or "Toggle"
                 local Default  = Params.Default  or false
                 local Callback = Params.Function or function() end
+                local State    = Default
 
-                local State = Default
+                local Wrapper = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 16), LayoutOrder = #self.Content:GetChildren(), ClipsDescendants = false })
+                local Row     = CreateObj("Frame", { Parent = Wrapper, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 16), ClipsDescendants = false })
 
-                local Wrapper = CreateObj("Frame", {
-                    Parent              = self.Content,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Size                = UDim2.new(1, 0, 0, 16),
-                    LayoutOrder         = #self.Content:GetChildren(),
-                    ClipsDescendants    = false,
-                })
+                local CheckBox = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10, 10, 10), BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.new(0, 12, 0, 12) })
+                CreateObj("UIStroke", { Parent = CheckBox, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                local Row = CreateObj("Frame", {
-                    Parent              = Wrapper,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Size                = UDim2.new(1, 0, 0, 16),
-                    ClipsDescendants    = false,
-                })
+                local Fill = CreateObj("Frame", { Name = "Fill", Parent = CheckBox, BackgroundColor3 = Library.Configuration.ActiveToggle, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0), Size = UDim2.new(1, 0, 1, 0), Visible = Default })
 
-                local CheckBox = CreateObj("Frame", {
-                    Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-                    BorderSizePixel  = 0,
-                    AnchorPoint      = Vector2.new(0, 0.5),
-                    Position         = UDim2.new(0, 0, 0.5, 0),
-                    Size             = UDim2.new(0, 12, 0, 12),
-                })
+                local TitleLabel = CreateObj("TextLabel", { Parent = Row, BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(1, -18, 1, 0), Text = Title, TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
 
-                CreateObj("UIStroke", {
-                    Parent          = CheckBox,
-                    Color           = Library.Configuration.Accent,
-                    Thickness       = 1,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                })
-
-                local Fill = CreateObj("Frame", {
-                    Name             = "Fill",
-                    Parent           = CheckBox,
-                    BackgroundColor3 = Library.Configuration.ActiveToggle,
-                    BorderSizePixel  = 0,
-                    AnchorPoint      = Vector2.new(0.5, 0.5),
-                    Position         = UDim2.new(0.5, 0, 0.5, 0),
-                    Size             = UDim2.new(1, 0, 1, 0),
-                    Visible          = Default,
-                })
-
-                local TitleLabel = CreateObj("TextLabel", {
-                    Parent              = Row,
-                    BackgroundTransparency = 1,
-                    Position            = UDim2.new(0, 18, 0, 0),
-                    Size                = UDim2.new(1, -18, 1, 0),
-                    Text                = Title,
-                    TextColor3          = Color3.fromRGB(200, 200, 200),
-                    TextSize            = 12,
-                    FontFace            = UIFont,
-                    TextXAlignment      = Enum.TextXAlignment.Left,
-                    TextYAlignment      = Enum.TextYAlignment.Center,
-                    RichText            = false,
-                })
-
-                local HitBtn = CreateObj("TextButton", {
-                    Parent              = Row,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Position            = UDim2.new(0, 0, 0, 0),
-                    Size                = UDim2.new(1, 0, 1, 0),
-                    Text                = "",
-                    ZIndex              = 5,
-                })
+                local HitBtn = CreateObj("TextButton", { Parent = Row, BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Text = "", ZIndex = 5 })
 
                 local rightOffset = 0
-
                 local function shrinkTitle(px)
                     rightOffset = rightOffset + px
                     TitleLabel.Size = UDim2.new(1, -(18 + rightOffset), 1, 0)
@@ -1273,75 +1219,31 @@ function Library:CreateWindow(Params)
 
                 function Toggle:Set(value)
                     if type(value) ~= "boolean" then return end
-                    State = value
-                    Fill.Visible = State
-                    Callback(State)
+                    State = value; Fill.Visible = State; Callback(State)
                 end
 
                 function Toggle:AddKeyPicker(KParams)
                     local DefaultKey = KParams.Key      or Enum.KeyCode.E
                     local KCallback  = KParams.Function or function() end
-
                     local CurrentKey = DefaultKey
                     local Listening  = false
 
                     shrinkTitle(36)
 
-                    local KBox = CreateObj("Frame", {
-                        Parent           = Row,
-                        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-                        BorderSizePixel  = 0,
-                        AnchorPoint      = Vector2.new(1, 0.5),
-                        Position         = UDim2.new(1, -(rightOffset - 36), 0.5, 0),
-                        Size             = UDim2.new(0, 32, 0, 12),
-                        ZIndex           = 6,
-                    })
+                    local KBox = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10, 10, 10), BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(rightOffset - 36), 0.5, 0), Size = UDim2.new(0, 32, 0, 12), ZIndex = 6 })
+                    CreateObj("UIStroke", { Parent = KBox, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                    CreateObj("UIStroke", {
-                        Parent          = KBox,
-                        Color           = Library.Configuration.Accent,
-                        Thickness       = 1,
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    })
-
-                    local KLabel = CreateObj("TextLabel", {
-                        Parent              = KBox,
-                        BackgroundTransparency = 1,
-                        Size                = UDim2.new(1, 0, 1, 0),
-                        Text                = DefaultKey.Name,
-                        TextColor3          = Color3.fromRGB(160, 160, 160),
-                        TextSize            = 9,
-                        FontFace            = UIFont,
-                        TextXAlignment      = Enum.TextXAlignment.Center,
-                        TextYAlignment      = Enum.TextYAlignment.Center,
-                        ClipsDescendants    = true,
-                        ZIndex              = 7,
-                    })
-
-                    local KBtn = CreateObj("TextButton", {
-                        Parent              = KBox,
-                        BackgroundTransparency = 1,
-                        BorderSizePixel     = 0,
-                        Size                = UDim2.new(1, 0, 1, 0),
-                        Text                = "",
-                        ZIndex              = 8,
-                    })
+                    local KLabel = CreateObj("TextLabel", { Parent = KBox, BackgroundTransparency = 1, Size = UDim2.new(1,0,1,0), Text = DefaultKey.Name, TextColor3 = Color3.fromRGB(160,160,160), TextSize = 9, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, ClipsDescendants = true, ZIndex = 7 })
+                    local KBtn  = CreateObj("TextButton", { Parent = KBox, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 8 })
 
                     local function startListen()
                         if Listening then return end
-                        Listening         = true
-                        KLabel.Text       = "..."
-                        KLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-
+                        Listening = true; KLabel.Text = "..."; KLabel.TextColor3 = Color3.fromRGB(255,255,255)
                         local conn
                         conn = UserInputService.InputBegan:Connect(function(input, processed)
                             if processed then return end
                             if input.UserInputType == Enum.UserInputType.Keyboard then
-                                CurrentKey        = input.KeyCode
-                                KLabel.Text       = input.KeyCode.Name
-                                KLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
-                                Listening         = false
-                                conn:Disconnect()
+                                CurrentKey = input.KeyCode; KLabel.Text = input.KeyCode.Name; KLabel.TextColor3 = Color3.fromRGB(160,160,160); Listening = false; conn:Disconnect()
                             end
                         end)
                     end
@@ -1350,186 +1252,55 @@ function Library:CreateWindow(Params)
 
                     UserInputService.InputBegan:Connect(function(input, processed)
                         if processed or Listening then return end
-                        if input.UserInputType == Enum.UserInputType.Keyboard
-                        and input.KeyCode == CurrentKey then
+                        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == CurrentKey then
                             KCallback(not State)
                         end
                     end)
 
                     local KP = {}
-
-                    function KP:Set(key)
-                        CurrentKey  = key
-                        KLabel.Text = key.Name
-                    end
-
-                    function KP:Get()
-                        return CurrentKey
-                    end
-
+                    function KP:Set(key) CurrentKey = key; KLabel.Text = key.Name end
+                    function KP:Get() return CurrentKey end
                     return KP
                 end
 
                 function Toggle:AddColorPicker(CParams)
-                    local DefaultColor = CParams.Defualt  or CParams.Default or Color3.fromRGB(255, 255, 255)
-                    local CCallback    = CParams.Function  or function() end
-
-                    local h, s, v = rgbToHsv(DefaultColor.R, DefaultColor.G, DefaultColor.B)
+                    local DefaultColor = CParams.Defualt or CParams.Default or Color3.fromRGB(255,255,255)
+                    local CCallback    = CParams.Function or function() end
+                    local h, s, v      = rgbToHsv(DefaultColor.R, DefaultColor.G, DefaultColor.B)
                     local CurrentColor = DefaultColor
                     local popupOpen    = false
                     local popupFrame   = nil
 
                     shrinkTitle(18)
 
-                    local colorSwatch = CreateObj("Frame", {
-                        Parent           = Row,
-                        BackgroundColor3 = DefaultColor,
-                        BorderSizePixel  = 0,
-                        AnchorPoint      = Vector2.new(1, 0.5),
-                        Position         = UDim2.new(1, -(rightOffset - 18), 0.5, 0),
-                        Size             = UDim2.new(0, 14, 0, 12),
-                        ZIndex           = 6,
-                    })
+                    local colorSwatch = CreateObj("Frame", { Parent = Row, BackgroundColor3 = DefaultColor, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(rightOffset - 18), 0.5, 0), Size = UDim2.new(0, 14, 0, 12), ZIndex = 6 })
+                    CreateObj("UIStroke", { Parent = colorSwatch, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                    CreateObj("UIStroke", {
-                        Parent          = colorSwatch,
-                        Color           = Library.Configuration.Accent,
-                        Thickness       = 1,
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    })
+                    local SwatchBtn = CreateObj("TextButton", { Parent = colorSwatch, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 8 })
 
-                    local SwatchBtn = CreateObj("TextButton", {
-                        Parent              = colorSwatch,
-                        BackgroundTransparency = 1,
-                        BorderSizePixel     = 0,
-                        Size                = UDim2.new(1, 0, 1, 0),
-                        Text                = "",
-                        ZIndex              = 8,
-                    })
-
-                    local PW, PH = 160, 160
-                    local HW, HH = 160, 12
+                    local PW, PH  = 160, 160
+                    local HW, HH  = 160, 12
                     local POPUP_H = PH + HH + 12 + 6
 
                     local function buildPopup()
-                        popupFrame = CreateObj("Frame", {
-                            Parent           = ScreenGui,
-                            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-                            BorderSizePixel  = 0,
-                            Size             = UDim2.new(0, PW + 16, 0, POPUP_H),
-                            Position         = UDim2.new(0, 0, 0, 0),
-                            ZIndex           = 50,
-                            ClipsDescendants = false,
-                        })
+                        popupFrame = CreateObj("Frame", { Parent = ScreenGui, BackgroundColor3 = Color3.fromRGB(20,20,20), BorderSizePixel = 0, Size = UDim2.new(0, PW+16, 0, POPUP_H), Position = UDim2.new(0,0,0,0), ZIndex = 50, ClipsDescendants = false })
+                        CreateObj("UIStroke", { Parent = popupFrame, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                        CreateObj("UIStroke", {
-                            Parent          = popupFrame,
-                            Color           = Library.Configuration.Accent,
-                            Thickness       = 1,
-                            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        })
+                        local svArea = CreateObj("Frame", { Parent = popupFrame, BackgroundColor3 = Color3.fromHSV(h,1,1), BorderSizePixel = 0, Position = UDim2.new(0,8,0,8), Size = UDim2.new(0,PW,0,PH), ZIndex = 51, ClipsDescendants = true })
+                        local svWhite = CreateObj("Frame", { Parent = svArea, Size = UDim2.new(1,0,1,0), BorderSizePixel = 0, ZIndex = 52 })
+                        CreateObj("UIGradient", { Parent = svWhite, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1) }), Rotation = 0 })
+                        local svBlack = CreateObj("Frame", { Parent = svArea, Size = UDim2.new(1,0,1,0), BorderSizePixel = 0, ZIndex = 53 })
+                        CreateObj("UIGradient", { Parent = svBlack, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,1), NumberSequenceKeypoint.new(1,0) }), Rotation = 90 })
 
-                        local svArea = CreateObj("Frame", {
-                            Parent           = popupFrame,
-                            BackgroundColor3 = Color3.fromHSV(h, 1, 1),
-                            BorderSizePixel  = 0,
-                            Position         = UDim2.new(0, 8, 0, 8),
-                            Size             = UDim2.new(0, PW, 0, PH),
-                            ZIndex           = 51,
-                            ClipsDescendants = true,
-                        })
-
-                        local svWhite = CreateObj("Frame", {
-                            Parent          = svArea,
-                            Size            = UDim2.new(1, 0, 1, 0),
-                            BorderSizePixel = 0,
-                            ZIndex          = 52,
-                        })
-
-                        CreateObj("UIGradient", {
-                            Parent       = svWhite,
-                            Color        = ColorSequence.new({
-                                ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
-                                ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255)),
-                            }),
-                            Transparency = NumberSequence.new({
-                                NumberSequenceKeypoint.new(0, 0),
-                                NumberSequenceKeypoint.new(1, 1),
-                            }),
-                            Rotation = 0,
-                        })
-
-                        local svBlack = CreateObj("Frame", {
-                            Parent          = svArea,
-                            Size            = UDim2.new(1, 0, 1, 0),
-                            BorderSizePixel = 0,
-                            ZIndex          = 53,
-                        })
-
-                        CreateObj("UIGradient", {
-                            Parent       = svBlack,
-                            Color        = ColorSequence.new({
-                                ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
-                                ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0)),
-                            }),
-                            Transparency = NumberSequence.new({
-                                NumberSequenceKeypoint.new(0, 1),
-                                NumberSequenceKeypoint.new(1, 0),
-                            }),
-                            Rotation = 90,
-                        })
-
-                        local svCursor = CreateObj("Frame", {
-                            Parent           = svArea,
-                            BackgroundColor3 = Color3.fromRGB(255,255,255),
-                            BorderSizePixel  = 0,
-                            AnchorPoint      = Vector2.new(0.5, 0.5),
-                            Position         = UDim2.new(s, 0, 1 - v, 0),
-                            Size             = UDim2.new(0, 6, 0, 6),
-                            ZIndex           = 55,
-                        })
-                        CreateObj("UICorner", { Parent = svCursor, CornerRadius = UDim.new(1, 0) })
+                        local svCursor = CreateObj("Frame", { Parent = svArea, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(s,0,1-v,0), Size = UDim2.new(0,6,0,6), ZIndex = 55 })
+                        CreateObj("UICorner", { Parent = svCursor, CornerRadius = UDim.new(1,0) })
                         CreateObj("UIStroke", { Parent = svCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
 
-                        local hueBar = CreateObj("Frame", {
-                            Parent           = popupFrame,
-                            BorderSizePixel  = 0,
-                            Position         = UDim2.new(0, 8, 0, PH + 12),
-                            Size             = UDim2.new(0, HW, 0, HH),
-                            ZIndex           = 51,
-                            ClipsDescendants = true,
-                        })
+                        local hueBar = CreateObj("Frame", { Parent = popupFrame, BorderSizePixel = 0, Position = UDim2.new(0,8,0,PH+12), Size = UDim2.new(0,HW,0,HH), ZIndex = 51, ClipsDescendants = true })
+                        CreateObj("UIGradient", { Parent = hueBar, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0/6, Color3.fromHSV(0/6,1,1)), ColorSequenceKeypoint.new(1/6, Color3.fromHSV(1/6,1,1)), ColorSequenceKeypoint.new(2/6, Color3.fromHSV(2/6,1,1)), ColorSequenceKeypoint.new(3/6, Color3.fromHSV(3/6,1,1)), ColorSequenceKeypoint.new(4/6, Color3.fromHSV(4/6,1,1)), ColorSequenceKeypoint.new(5/6, Color3.fromHSV(5/6,1,1)), ColorSequenceKeypoint.new(6/6, Color3.fromHSV(0,1,1)) }), Rotation = 0 })
+                        CreateObj("UIStroke", { Parent = hueBar, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                        CreateObj("UIGradient", {
-                            Parent = hueBar,
-                            Color  = ColorSequence.new({
-                                ColorSequenceKeypoint.new(0/6, Color3.fromHSV(0/6,1,1)),
-                                ColorSequenceKeypoint.new(1/6, Color3.fromHSV(1/6,1,1)),
-                                ColorSequenceKeypoint.new(2/6, Color3.fromHSV(2/6,1,1)),
-                                ColorSequenceKeypoint.new(3/6, Color3.fromHSV(3/6,1,1)),
-                                ColorSequenceKeypoint.new(4/6, Color3.fromHSV(4/6,1,1)),
-                                ColorSequenceKeypoint.new(5/6, Color3.fromHSV(5/6,1,1)),
-                                ColorSequenceKeypoint.new(6/6, Color3.fromHSV(0,  1,1)),
-                            }),
-                            Rotation = 0,
-                        })
-
-                        CreateObj("UIStroke", {
-                            Parent          = hueBar,
-                            Color           = Library.Configuration.Accent,
-                            Thickness       = 1,
-                            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        })
-
-                        local hueCursor = CreateObj("Frame", {
-                            Parent           = hueBar,
-                            BackgroundColor3 = Color3.fromRGB(255,255,255),
-                            BorderSizePixel  = 0,
-                            AnchorPoint      = Vector2.new(0.5, 0.5),
-                            Position         = UDim2.new(h, 0, 0.5, 0),
-                            Size             = UDim2.new(0, 4, 1, 0),
-                            ZIndex           = 55,
-                        })
+                        local hueCursor = CreateObj("Frame", { Parent = hueBar, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(h,0,0.5,0), Size = UDim2.new(0,4,1,0), ZIndex = 55 })
                         CreateObj("UIStroke", { Parent = hueCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
 
                         local function applyColor()
@@ -1537,7 +1308,7 @@ function Library:CreateWindow(Params)
                             CurrentColor = Color3.new(r, g, b)
                             colorSwatch.BackgroundColor3 = CurrentColor
                             svArea.BackgroundColor3      = Color3.fromHSV(h, 1, 1)
-                            svCursor.Position            = UDim2.new(s, 0, 1 - v, 0)
+                            svCursor.Position            = UDim2.new(s, 0, 1-v, 0)
                             hueCursor.Position           = UDim2.new(h, 0, 0.5, 0)
                             CCallback(CurrentColor)
                         end
@@ -1545,14 +1316,7 @@ function Library:CreateWindow(Params)
                         local svDragging  = false
                         local hueDragging = false
 
-                        local svHit = CreateObj("TextButton", {
-                            Parent              = svArea,
-                            BackgroundTransparency = 1,
-                            BorderSizePixel     = 0,
-                            Size                = UDim2.new(1, 0, 1, 0),
-                            Text                = "",
-                            ZIndex              = 56,
-                        })
+                        local svHit = CreateObj("TextButton", { Parent = svArea, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
 
                         local function updateSV(inputX, inputY)
                             local abs  = svArea.AbsolutePosition
@@ -1562,20 +1326,9 @@ function Library:CreateWindow(Params)
                             applyColor()
                         end
 
-                        svHit.MouseButton1Down:Connect(function()
-                            svDragging = true
-                            local m = game.Players.LocalPlayer:GetMouse()
-                            updateSV(m.X, m.Y)
-                        end)
+                        svHit.MouseButton1Down:Connect(function() svDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateSV(m.X, m.Y) end)
 
-                        local hueHit = CreateObj("TextButton", {
-                            Parent              = hueBar,
-                            BackgroundTransparency = 1,
-                            BorderSizePixel     = 0,
-                            Size                = UDim2.new(1, 0, 1, 0),
-                            Text                = "",
-                            ZIndex              = 56,
-                        })
+                        local hueHit = CreateObj("TextButton", { Parent = hueBar, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
 
                         local function updateHue(inputX)
                             local abs  = hueBar.AbsolutePosition
@@ -1584,17 +1337,10 @@ function Library:CreateWindow(Params)
                             applyColor()
                         end
 
-                        hueHit.MouseButton1Down:Connect(function()
-                            hueDragging = true
-                            local m = game.Players.LocalPlayer:GetMouse()
-                            updateHue(m.X)
-                        end)
+                        hueHit.MouseButton1Down:Connect(function() hueDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateHue(m.X) end)
 
                         UserInputService.InputEnded:Connect(function(input)
-                            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                                svDragging  = false
-                                hueDragging = false
-                            end
+                            if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false; hueDragging = false end
                         end)
 
                         UserInputService.InputChanged:Connect(function(input)
@@ -1621,43 +1367,21 @@ function Library:CreateWindow(Params)
                                     local abs  = popupFrame and popupFrame.AbsolutePosition
                                     local size = popupFrame and popupFrame.AbsoluteSize
                                     if not abs then return end
-                                    local inside = m.X >= abs.X and m.X <= abs.X + size.X
-                                             and m.Y >= abs.Y and m.Y <= abs.Y + size.Y
-                                    if not inside then
-                                        popupOpen = false
-                                        popupFrame:Destroy()
-                                        popupFrame = nil
-                                        closeConn:Disconnect()
-                                    end
+                                    local inside = m.X >= abs.X and m.X <= abs.X + size.X and m.Y >= abs.Y and m.Y <= abs.Y + size.Y
+                                    if not inside then popupOpen = false; popupFrame:Destroy(); popupFrame = nil; closeConn:Disconnect() end
                                 end)
                             end
                         end)
                     end
 
                     SwatchBtn.MouseButton1Click:Connect(function()
-                        if popupOpen then
-                            popupOpen = false
-                            if popupFrame then popupFrame:Destroy(); popupFrame = nil end
-                        else
-                            popupOpen = true
-                            buildPopup()
-                        end
+                        if popupOpen then popupOpen = false; if popupFrame then popupFrame:Destroy(); popupFrame = nil end
+                        else popupOpen = true; buildPopup() end
                     end)
 
                     local CP = {}
-
-                    function CP:Set(color)
-                        if typeof(color) ~= "Color3" then return end
-                        h, s, v = rgbToHsv(color.R, color.G, color.B)
-                        CurrentColor = color
-                        colorSwatch.BackgroundColor3 = color
-                        CCallback(color)
-                    end
-
-                    function CP:Get()
-                        return CurrentColor
-                    end
-
+                    function CP:Set(color) if typeof(color) ~= "Color3" then return end; h, s, v = rgbToHsv(color.R, color.G, color.B); CurrentColor = color; colorSwatch.BackgroundColor3 = color; CCallback(color) end
+                    function CP:Get() return CurrentColor end
                     return CP
                 end
 
@@ -1670,90 +1394,24 @@ function Library:CreateWindow(Params)
                 local Min      = Params.Min      or 0
                 local Max      = Params.Max      or 100
                 local Callback = Params.Function or function() end
-
                 local Value    = math.clamp(Default, Min, Max)
                 local Dragging = false
 
-                local Row = CreateObj("Frame", {
-                    Parent              = self.Content,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Size                = UDim2.new(1, 0, 0, 32),
-                    LayoutOrder         = #self.Content:GetChildren()
-                })
+                local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 32), LayoutOrder = #self.Content:GetChildren() })
+                local Header = CreateObj("Frame", { Parent = Row, BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.new(0,0,0,0), Size = UDim2.new(1,0,0,14) })
 
-                local Header = CreateObj("Frame", {
-                    Parent              = Row,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Position            = UDim2.new(0, 0, 0, 0),
-                    Size                = UDim2.new(1, 0, 0, 14)
-                })
+                CreateObj("TextLabel", { Parent = Header, BackgroundTransparency = 1, Position = UDim2.new(0,0,0,0), Size = UDim2.new(0.6,0,1,0), Text = Title, TextColor3 = Color3.fromRGB(200,200,200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
 
-                CreateObj("TextLabel", {
-                    Parent              = Header,
-                    BackgroundTransparency = 1,
-                    Position            = UDim2.new(0, 0, 0, 0),
-                    Size                = UDim2.new(0.6, 0, 1, 0),
-                    Text                = Title,
-                    TextColor3          = Color3.fromRGB(200, 200, 200),
-                    TextSize            = 12,
-                    FontFace            = UIFont,
-                    TextXAlignment      = Enum.TextXAlignment.Left,
-                    TextYAlignment      = Enum.TextYAlignment.Center,
-                    RichText            = false
-                })
+                local ValueLabel = CreateObj("TextLabel", { Parent = Header, BackgroundTransparency = 1, Position = UDim2.new(0.6,0,0,0), Size = UDim2.new(0.4,0,1,0), Text = tostring(Value) .. "/" .. tostring(Max), TextColor3 = Color3.fromRGB(160,160,160), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
 
-                local ValueLabel = CreateObj("TextLabel", {
-                    Parent              = Header,
-                    BackgroundTransparency = 1,
-                    Position            = UDim2.new(0.6, 0, 0, 0),
-                    Size                = UDim2.new(0.4, 0, 1, 0),
-                    Text                = tostring(Value) .. "/" .. tostring(Max),
-                    TextColor3          = Color3.fromRGB(160, 160, 160),
-                    TextSize            = 12,
-                    FontFace            = UIFont,
-                    TextXAlignment      = Enum.TextXAlignment.Right,
-                    TextYAlignment      = Enum.TextYAlignment.Center,
-                    RichText            = false
-                })
+                local Track = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Position = UDim2.new(0,0,0,18), Size = UDim2.new(1,0,0,12) })
+                CreateObj("UIStroke", { Parent = Track, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                local Track = CreateObj("Frame", {
-                    Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-                    BorderSizePixel  = 0,
-                    Position         = UDim2.new(0, 0, 0, 18),
-                    Size             = UDim2.new(1, 0, 0, 12)
-                })
+                local function pctFor(val) return (val - Min) / (Max - Min) end
 
-                CreateObj("UIStroke", {
-                    Parent          = Track,
-                    Color           = Library.Configuration.Accent,
-                    Thickness       = 1,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-                })
+                local SliderFill = CreateObj("Frame", { Name = "SliderFill", Parent = Track, BackgroundColor3 = Library.Configuration.ActiveToggle, BorderSizePixel = 0, Position = UDim2.new(0,0,0,0), Size = UDim2.new(pctFor(Value),0,1,0) })
 
-                local function pctFor(val)
-                    return (val - Min) / (Max - Min)
-                end
-
-                local SliderFill = CreateObj("Frame", {
-                    Name             = "SliderFill",
-                    Parent           = Track,
-                    BackgroundColor3 = Library.Configuration.ActiveToggle,
-                    BorderSizePixel  = 0,
-                    Position         = UDim2.new(0, 0, 0, 0),
-                    Size             = UDim2.new(pctFor(Value), 0, 1, 0)
-                })
-
-                local HitBox = CreateObj("TextButton", {
-                    Parent              = Track,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Size                = UDim2.new(1, 0, 1, 0),
-                    Text                = "",
-                    ZIndex              = 5
-                })
+                local HitBox = CreateObj("TextButton", { Parent = Track, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 5 })
 
                 local function updateFromX(inputX)
                     local abs    = Track.AbsolutePosition.X
@@ -1769,42 +1427,14 @@ function Library:CreateWindow(Params)
                     end
                 end
 
-                HitBox.MouseButton1Down:Connect(function()
-                    Dragging = true
-                end)
-
-                UserInputService.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        Dragging = false
-                    end
-                end)
-
-                UserInputService.InputChanged:Connect(function(input)
-                    if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                        updateFromX(input.Position.X)
-                    end
-                end)
-
-                HitBox.MouseButton1Click:Connect(function()
-                    local mouse = game.Players.LocalPlayer:GetMouse()
-                    updateFromX(mouse.X)
-                end)
+                HitBox.MouseButton1Down:Connect(function() Dragging = true end)
+                UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end end)
+                UserInputService.InputChanged:Connect(function(input) if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then updateFromX(input.Position.X) end end)
+                HitBox.MouseButton1Click:Connect(function() local mouse = game.Players.LocalPlayer:GetMouse(); updateFromX(mouse.X) end)
 
                 local Slider = {}
-
-                function Slider:Set(value)
-                    if type(value) ~= "number" then return end
-                    value = math.clamp(value, Min, Max)
-                    Value = value
-                    SliderFill.Size = UDim2.new(pctFor(Value), 0, 1, 0)
-                    ValueLabel.Text = tostring(Value) .. "/" .. tostring(Max)
-                    Callback(Value)
-                end
-
-                function Slider:Get()
-                    return Value
-                end
-
+                function Slider:Set(value) if type(value) ~= "number" then return end; value = math.clamp(value, Min, Max); Value = value; SliderFill.Size = UDim2.new(pctFor(Value),0,1,0); ValueLabel.Text = tostring(Value) .. "/" .. tostring(Max); Callback(Value) end
+                function Slider:Get() return Value end
                 return Slider
             end
 
@@ -1813,7 +1443,7 @@ function Library:CreateWindow(Params)
                 local Default  = Params.Default  or Params.Defualt or nil
                 local Values   = Params.Values   or {}
                 local Multi    = Params.Multi     or false
-                local Callback = Params.Function or function() end
+                local Callback = Params.Function  or function() end
 
                 local Open          = false
                 local optionButtons = {}
@@ -1821,226 +1451,64 @@ function Library:CreateWindow(Params)
                 local CurrentValue
 
                 if Multi then
-                    if type(Default) == "table" then
-                        for _, v in ipairs(Default) do
-                            selectedSet[v] = true
-                        end
-                    end
+                    if type(Default) == "table" then for _, v in ipairs(Default) do selectedSet[v] = true end end
                 else
                     CurrentValue = (type(Default) == "string" and Default) or Values[1]
                 end
 
                 local function buildHeaderText()
-                    if not Multi then
-                        return tostring(CurrentValue)
-                    end
+                    if not Multi then return tostring(CurrentValue) end
                     local parts = {}
-                    for _, v in ipairs(Values) do
-                        if selectedSet[v] then
-                            parts[#parts + 1] = v
-                        end
-                    end
+                    for _, v in ipairs(Values) do if selectedSet[v] then parts[#parts+1] = v end end
                     return #parts > 0 and table.concat(parts, ", ") or "None"
                 end
 
-                local Row = CreateObj("Frame", {
-                    Parent              = self.Content,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Size                = UDim2.new(1, 0, 0, 38),
-                    LayoutOrder         = #self.Content:GetChildren(),
-                    ClipsDescendants    = false,
-                    ZIndex              = 1
-                })
+                local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,0,38), LayoutOrder = #self.Content:GetChildren(), ClipsDescendants = false, ZIndex = 1 })
 
-                CreateObj("TextLabel", {
-                    Parent              = Row,
-                    BackgroundTransparency = 1,
-                    Position            = UDim2.new(0, 0, 0, 0),
-                    Size                = UDim2.new(1, 0, 0, 14),
-                    Text                = Title,
-                    TextColor3          = Color3.fromRGB(200, 200, 200),
-                    TextSize            = 12,
-                    FontFace            = UIFont,
-                    TextXAlignment      = Enum.TextXAlignment.Left,
-                    TextYAlignment      = Enum.TextYAlignment.Center,
-                    RichText            = false
-                })
+                CreateObj("TextLabel", { Parent = Row, BackgroundTransparency = 1, Position = UDim2.new(0,0,0,0), Size = UDim2.new(1,0,0,14), Text = Title, TextColor3 = Color3.fromRGB(200,200,200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
 
-                local Head = CreateObj("Frame", {
-                    Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-                    BorderSizePixel  = 0,
-                    Position         = UDim2.new(0, 0, 0, 18),
-                    Size             = UDim2.new(1, 0, 0, 16),
-                    ZIndex           = 2
-                })
+                local Head = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Position = UDim2.new(0,0,0,18), Size = UDim2.new(1,0,0,16), ZIndex = 2 })
+                CreateObj("UIStroke", { Parent = Head, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                CreateObj("UIStroke", {
-                    Parent          = Head,
-                    Color           = Library.Configuration.Accent,
-                    Thickness       = 1,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-                })
+                local ValueLabel = CreateObj("TextLabel", { Parent = Head, BackgroundTransparency = 1, Position = UDim2.new(0,6,0,0), Size = UDim2.new(1,-20,1,0), Text = buildHeaderText(), TextColor3 = Color3.fromRGB(200,200,200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false, ClipsDescendants = true, ZIndex = 3 })
+                local Arrow      = CreateObj("TextLabel", { Parent = Head, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1,0.5), Position = UDim2.new(1,-6,0.5,0), Size = UDim2.new(0,12,1,0), Text = "+", TextColor3 = Color3.fromRGB(160,160,160), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, RichText = false, ZIndex = 3 })
+                local HeadButton = CreateObj("TextButton", { Parent = Head, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 4 })
 
-                local ValueLabel = CreateObj("TextLabel", {
-                    Parent              = Head,
-                    BackgroundTransparency = 1,
-                    Position            = UDim2.new(0, 6, 0, 0),
-                    Size                = UDim2.new(1, -20, 1, 0),
-                    Text                = buildHeaderText(),
-                    TextColor3          = Color3.fromRGB(200, 200, 200),
-                    TextSize            = 12,
-                    FontFace            = UIFont,
-                    TextXAlignment      = Enum.TextXAlignment.Left,
-                    TextYAlignment      = Enum.TextYAlignment.Center,
-                    RichText            = false,
-                    ClipsDescendants    = true,
-                    ZIndex              = 3
-                })
+                local ListFrame = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Position = UDim2.new(0,0,0,38), Size = UDim2.new(1,0,1,0), ClipsDescendants = true, Visible = false, ZIndex = 5 })
+                CreateObj("UIStroke", { Parent = ListFrame, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+                CreateObj("UIListLayout", { Parent = ListFrame, FillDirection = Enum.FillDirection.Vertical, HorizontalAlignment = Enum.HorizontalAlignment.Left, VerticalAlignment = Enum.VerticalAlignment.Top, Padding = UDim.new(0,0), SortOrder = Enum.SortOrder.LayoutOrder })
 
-                local Arrow = CreateObj("TextLabel", {
-                    Parent              = Head,
-                    BackgroundTransparency = 1,
-                    AnchorPoint         = Vector2.new(1, 0.5),
-                    Position            = UDim2.new(1, -6, 0.5, 0),
-                    Size                = UDim2.new(0, 12, 1, 0),
-                    Text                = "+",
-                    TextColor3          = Color3.fromRGB(160, 160, 160),
-                    TextSize            = 12,
-                    FontFace            = UIFont,
-                    TextXAlignment      = Enum.TextXAlignment.Right,
-                    TextYAlignment      = Enum.TextYAlignment.Center,
-                    RichText            = false,
-                    ZIndex              = 3
-                })
-
-                local HeadButton = CreateObj("TextButton", {
-                    Parent              = Head,
-                    BackgroundTransparency = 1,
-                    BorderSizePixel     = 0,
-                    Size                = UDim2.new(1, 0, 1, 0),
-                    Text                = "",
-                    ZIndex              = 4
-                })
-
-                local ListFrame = CreateObj("Frame", {
-                    Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-                    BorderSizePixel  = 0,
-                    Position         = UDim2.new(0, 0, 0, 38),
-                    Size             = UDim2.new(1, 0, 1, 0),
-                    ClipsDescendants = true,
-                    Visible          = false,
-                    ZIndex           = 5
-                })
-
-                CreateObj("UIStroke", {
-                    Parent          = ListFrame,
-                    Color           = Library.Configuration.Accent,
-                    Thickness       = 1,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-                })
-
-                CreateObj("UIListLayout", {
-                    Parent              = ListFrame,
-                    FillDirection       = Enum.FillDirection.Vertical,
-                    HorizontalAlignment = Enum.HorizontalAlignment.Left,
-                    VerticalAlignment   = Enum.VerticalAlignment.Top,
-                    Padding             = UDim.new(0, 0),
-                    SortOrder           = Enum.SortOrder.LayoutOrder
-                })
-
-                local function closeList()
-                    Open = false
-                    ListFrame.Visible = false
-                    ListFrame.Size    = UDim2.new(1, 0, 0, 0)
-                    Arrow.Text        = "+"
-                    Row.Size          = UDim2.new(1, 0, 0, 37)
-                end
-
-                local function openList()
-                    Open = true
-                    ListFrame.Visible = true
-                    local h2          = #Values * 16
-                    ListFrame.Size    = UDim2.new(1, 0, 0, h2)
-                    Arrow.Text        = "-"
-                    Row.Size          = UDim2.new(1, 0, 0, 37 + h2 + 1)
-                end
+                local function closeList() Open = false; ListFrame.Visible = false; ListFrame.Size = UDim2.new(1,0,0,0); Arrow.Text = "+"; Row.Size = UDim2.new(1,0,0,37) end
+                local function openList()  Open = true;  ListFrame.Visible = true;  local h2 = #Values * 16; ListFrame.Size = UDim2.new(1,0,0,h2); Arrow.Text = "-"; Row.Size = UDim2.new(1,0,0,37+h2+1) end
 
                 local function selectSingle(val)
-                    CurrentValue = val
-                    ValueLabel.Text = tostring(val)
-                    for k, btn in pairs(optionButtons) do
-                        btn.TextColor3 = (k == val)
-                            and Color3.fromRGB(255, 255, 255)
-                            or Color3.fromRGB(160, 160, 160)
-                    end
-                    Callback(val)
-                    closeList()
+                    CurrentValue = val; ValueLabel.Text = tostring(val)
+                    for k, btn in pairs(optionButtons) do btn.TextColor3 = (k == val) and Color3.fromRGB(255,255,255) or Color3.fromRGB(160,160,160) end
+                    Callback(val); closeList()
                 end
 
                 local function toggleMulti(val)
                     selectedSet[val] = not selectedSet[val] or nil
                     local btn = optionButtons[val]
-                    if btn then
-                        btn.TextColor3 = selectedSet[val]
-                            and Color3.fromRGB(255, 255, 255)
-                            or Color3.fromRGB(160, 160, 160)
-                    end
+                    if btn then btn.TextColor3 = selectedSet[val] and Color3.fromRGB(255,255,255) or Color3.fromRGB(160,160,160) end
                     ValueLabel.Text = buildHeaderText()
                     local out = {}
-                    for _, v in ipairs(Values) do
-                        if selectedSet[v] then out[#out + 1] = v end
-                    end
+                    for _, v in ipairs(Values) do if selectedSet[v] then out[#out+1] = v end end
                     Callback(out)
                 end
 
                 local function buildOptionButtons()
                     for i, val in ipairs(Values) do
-                        local isActive = Multi
-                            and (selectedSet[val] == true)
-                            or (val == CurrentValue)
-
-                        local OptBtn = CreateObj("TextButton", {
-                            Parent              = ListFrame,
-                            BackgroundColor3    = Color3.fromRGB(10, 10, 10),
-                            BorderSizePixel     = 0,
-                            Size                = UDim2.new(1, 0, 0, 16),
-                            Text                = tostring(val),
-                            TextColor3          = isActive
-                                and Color3.fromRGB(255, 255, 255)
-                                or Color3.fromRGB(160, 160, 160),
-                            TextSize            = 12,
-                            FontFace            = UIFont,
-                            TextXAlignment      = Enum.TextXAlignment.Left,
-                            AutoButtonColor     = false,
-                            ZIndex              = 6,
-                            LayoutOrder         = i
-                        })
-
-                        CreateObj("UIPadding", {
-                            Parent      = OptBtn,
-                            PaddingLeft = UDim.new(0, 6)
-                        })
-
+                        local isActive = Multi and (selectedSet[val] == true) or (val == CurrentValue)
+                        local OptBtn = CreateObj("TextButton", { Parent = ListFrame, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Size = UDim2.new(1,0,0,16), Text = tostring(val), TextColor3 = isActive and Color3.fromRGB(255,255,255) or Color3.fromRGB(160,160,160), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, ZIndex = 6, LayoutOrder = i })
+                        CreateObj("UIPadding", { Parent = OptBtn, PaddingLeft = UDim.new(0,6) })
                         optionButtons[val] = OptBtn
-
-                        OptBtn.MouseButton1Click:Connect(function()
-                            if Multi then
-                                toggleMulti(val)
-                            else
-                                selectSingle(val)
-                            end
-                        end)
+                        OptBtn.MouseButton1Click:Connect(function() if Multi then toggleMulti(val) else selectSingle(val) end end)
                     end
                 end
 
                 buildOptionButtons()
-
-                HeadButton.MouseButton1Click:Connect(function()
-                    if Open then closeList() else openList() end
-                end)
+                HeadButton.MouseButton1Click:Connect(function() if Open then closeList() else openList() end end)
 
                 local Dropdown = {}
 
@@ -2048,60 +1516,35 @@ function Library:CreateWindow(Params)
                     if Multi then
                         if type(value) ~= "table" then return end
                         selectedSet = {}
-                        for _, v in ipairs(value) do
-                            selectedSet[v] = true
-                        end
-                        for k, btn in pairs(optionButtons) do
-                            btn.TextColor3 = selectedSet[k]
-                                and Color3.fromRGB(255, 255, 255)
-                                or Color3.fromRGB(160, 160, 160)
-                        end
+                        for _, v in ipairs(value) do selectedSet[v] = true end
+                        for k, btn in pairs(optionButtons) do btn.TextColor3 = selectedSet[k] and Color3.fromRGB(255,255,255) or Color3.fromRGB(160,160,160) end
                         ValueLabel.Text = buildHeaderText()
                         local out = {}
-                        for _, v in ipairs(Values) do
-                            if selectedSet[v] then out[#out + 1] = v end
-                        end
+                        for _, v in ipairs(Values) do if selectedSet[v] then out[#out+1] = v end end
                         Callback(out)
                     else
-                        for _, v in ipairs(Values) do
-                            if v == value then
-                                selectSingle(value)
-                                return
-                            end
-                        end
+                        for _, v in ipairs(Values) do if v == value then selectSingle(value); return end end
                     end
                 end
 
                 function Dropdown:Get()
-                    if Multi then
-                        local out = {}
-                        for _, v in ipairs(Values) do
-                            if selectedSet[v] then out[#out + 1] = v end
-                        end
-                        return out
-                    end
+                    if Multi then local out = {}; for _, v in ipairs(Values) do if selectedSet[v] then out[#out+1] = v end end; return out end
                     return CurrentValue
                 end
 
                 function Dropdown:Refresh(newValues)
                     Values = newValues
-                    for _, btn in pairs(optionButtons) do
-                        btn:Destroy()
-                    end
+                    for _, btn in pairs(optionButtons) do btn:Destroy() end
                     optionButtons = {}
                     if not Multi then
                         local found = false
-                        for _, v in ipairs(Values) do
-                            if v == CurrentValue then found = true; break end
-                        end
+                        for _, v in ipairs(Values) do if v == CurrentValue then found = true; break end end
                         if not found then CurrentValue = Values[1] end
                         ValueLabel.Text = buildHeaderText()
                     else
                         local validSet = {}
                         for _, v in ipairs(Values) do validSet[v] = true end
-                        for k in pairs(selectedSet) do
-                            if not validSet[k] then selectedSet[k] = nil end
-                        end
+                        for k in pairs(selectedSet) do if not validSet[k] then selectedSet[k] = nil end end
                         ValueLabel.Text = buildHeaderText()
                     end
                     buildOptionButtons()
@@ -2131,55 +1574,34 @@ function Library:CreateWindow(Params)
     end
 
     function Window:BuildUITab(tabName, isThemeCustomizable)
-        local UITab = self:AddTab(tabName or "UI")
-
+        local UITab  = self:AddTab(tabName or "UI")
         local MenuBox = UITab:AddRightBox("Menu")
 
-        MenuBox:AddButton({
-            Title    = "Unload",
-            Function = function()
-                ScreenGui:Destroy()
-            end
-        })
+        MenuBox:AddButton({ Title = "Unload", Function = function() ScreenGui:Destroy() end })
 
         local ShowMenuToggle = MenuBox:AddToggle({
             Title    = "Show Menu",
             Default  = true,
-            Function = function(val)
-                guiVisible = val
-                ScreenGui.Enabled = val
-            end
+            Function = function(val) guiVisible = val; ScreenGui.Enabled = val end
         })
 
-        ShowMenuToggle:AddKeyPicker({
-            Key      = Window.ToggleKeybind,
-            Function = function(val)
-                ShowMenuToggle:Set(val)
-            end
-        })
+        ShowMenuToggle:AddKeyPicker({ Key = Window.ToggleKeybind, Function = function(val) ShowMenuToggle:Set(val) end })
 
         if isThemeCustomizable then
             local ThemeBox = UITab:AddLeftBox("Theme")
-
-            local entries = {
-                { "Background",  "Background",  applyBackground  },
-                { "Inner",       "Inner",        applyInner       },
-                { "TopBar",      "TopBar",       applyTopBar      },
-                { "Accent",      "Accent",       applyAccent      },
-                { "Tab Active",  "TabActive",    applyTabActive   },
-                { "Tab Inactive","TabInactive",  applyTabInactive },
-                { "Fill Color",  "FillColor",    applyActiveToggle},
+            local entries  = {
+                { "Background",   "Background",  applyBackground   },
+                { "Inner",        "Inner",        applyInner        },
+                { "TopBar",       "TopBar",       applyTopBar       },
+                { "Accent",       "Accent",       applyAccent       },
+                { "Tab Active",   "TabActive",    applyTabActive    },
+                { "Tab Inactive", "TabInactive",  applyTabInactive  },
+                { "Fill Color",   "FillColor",    applyActiveToggle },
             }
-
             for _, entry in ipairs(entries) do
                 local label, key, applyFn = entry[1], entry[2], entry[3]
                 local titleRow = ThemeBox:AddTitle(label)
-                titleRow:AddColorPicker({
-                    Default  = Library.Configuration[key],
-                    Function = function(color)
-                        applyFn(color)
-                    end
-                })
+                titleRow:AddColorPicker({ Default = Library.Configuration[key], Function = function(color) applyFn(color) end })
             end
         end
 
