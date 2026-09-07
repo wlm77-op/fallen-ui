@@ -10,13 +10,19 @@ local Library = {
         TabTextDim = Color3.fromRGB(120,120,120),
         ActiveToggle = Color3.fromRGB(120,120,120),
     },
-    Tabs = {}
+    Tabs = {},
+    _connections = {},
 }
 
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+
+local function trackConn(conn)
+    table.insert(Library._connections, conn)
+    return conn
+end
 
 local function getFont()
     local ttfName = "UIFont.ttf"
@@ -160,7 +166,7 @@ local function spawnNotif(rawText, duration)
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(0, 0),
         Position = UDim2.new(0, -300, 0, 0),
-        Size = UDim2.new(1, 0, 1, 0),
+        Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         ClipsDescendants = false,
     })
@@ -185,17 +191,17 @@ local function spawnNotif(rawText, duration)
         BackgroundColor3 = Library.Configuration.Inner,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 2, 0, 0),
-        Size = UDim2.new(1, -2, 1, 0),
+        Size = UDim2.new(1, -2, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         ClipsDescendants = false,
     })
 
     CreateObj("UIPadding", {
         Parent = Inner,
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        PaddingTop = UDim.new(0, 6),
-        PaddingBottom = UDim.new(0, 8),
+        PaddingLeft   = UDim.new(0, 8),
+        PaddingRight  = UDim.new(0, 8),
+        PaddingTop    = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 6),
     })
 
     CreateObj("TextLabel", {
@@ -672,16 +678,23 @@ function Library:CreateWindow(Params)
     Window.ToggleKeybind = Enum.KeyCode.K
 
     function Window:Unload()
+        -- flush every tracked InputBegan / InputEnded connection
+        for _, conn in ipairs(Library._connections) do
+            pcall(function() conn:Disconnect() end)
+        end
+        Library._connections = {}
         ScreenGui:Destroy()
+        NotifGui:Destroy()
     end
 
-    UserInputService.InputBegan:Connect(function(input, processed)
+    -- window visibility toggle — tracked so Unload can kill it
+    trackConn(UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Window.ToggleKeybind then
             guiVisible = not guiVisible
             ScreenGui.Enabled = guiVisible
         end
-    end)
+    end))
 
     function Window:AddTab(name)
         local textService = game:GetService("TextService")
@@ -969,12 +982,13 @@ function Library:CreateWindow(Params)
 
                     KBtn.MouseButton1Click:Connect(startListen)
 
-                    UserInputService.InputBegan:Connect(function(input, processed)
+                    -- fire connection — tracked for Unload
+                    trackConn(UserInputService.InputBegan:Connect(function(input, processed)
                         if processed or Listening then return end
                         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == CurrentKey then
                             KCallback(input.KeyCode)
                         end
-                    end)
+                    end))
 
                     local KP = {}
                     function KP:Set(key) CurrentKey = key; KLabel.Text = key.Name end
@@ -1250,12 +1264,13 @@ function Library:CreateWindow(Params)
 
                     KBtn.MouseButton1Click:Connect(startListen)
 
-                    UserInputService.InputBegan:Connect(function(input, processed)
+                    -- fire connection — tracked for Unload
+                    trackConn(UserInputService.InputBegan:Connect(function(input, processed)
                         if processed or Listening then return end
                         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == CurrentKey then
                             KCallback(not State)
                         end
-                    end)
+                    end))
 
                     local KP = {}
                     function KP:Set(key) CurrentKey = key; KLabel.Text = key.Name end
@@ -1577,7 +1592,7 @@ function Library:CreateWindow(Params)
         local UITab  = self:AddTab(tabName or "UI")
         local MenuBox = UITab:AddRightBox("Menu")
 
-        MenuBox:AddButton({ Title = "Unload", Function = function() ScreenGui:Destroy() end })
+        MenuBox:AddButton({ Title = "Unload", Function = function() self:Unload() end })
 
         local ShowMenuToggle = MenuBox:AddToggle({
             Title    = "Show Menu",
