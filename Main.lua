@@ -1433,37 +1433,49 @@ function Library:CreateWindow(Params)
     end
 
     function Window:BuildUITab(tabName, isThemeCustomizable)
-        local UITab   = self:AddTab(tabName or "UI")
-        local MenuBox = UITab:AddRightBox("Menu")
+    local UITab   = self:AddTab(tabName or "UI")
+    local MenuBox = UITab:AddRightBox("Menu")
 
-        MenuBox:AddButton({ Title = "Unload", Function = function() self:Unload() end })
+    MenuBox:AddButton({ Title = "Unload", Function = function() self:Unload() end })
 
-        local ShowMenuTitle = MenuBox:AddTitle("Menu Key")
-        ShowMenuTitle:AddKeyPicker({ Key = Window.ToggleKeybind, Function = function()
+    -- ↓ was: AddTitle("Menu Key") + AddKeyPicker(...)
+    local MenuToggle = MenuBox:AddToggle({
+        Title   = "Menu Key",
+        Default = true,
+        Function = function(val)
+            guiVisible = val
+            ScreenGui.Enabled = val
+        end
+    })
+    MenuToggle:AddKeyPicker({
+        Key      = Window.ToggleKeybind,
+        Function = function()
             guiVisible = not guiVisible
             ScreenGui.Enabled = guiVisible
-        end })
-
-        if isThemeCustomizable then
-            local ThemeBox = UITab:AddLeftBox("Theme")
-            local entries  = {
-                { "Background",   "Background",   applyBackground   },
-                { "Inner",        "Inner",        applyInner        },
-                { "TopBar",       "TopBar",       applyTopBar       },
-                { "Accent",       "Accent",       applyAccent       },
-                { "Tab Active",   "TabActive",    applyTabActive    },
-                { "Tab Inactive", "TabInactive",  applyTabInactive  },
-                { "Fill Color",   "ActiveToggle", applyActiveToggle },
-            }
-            for _, entry in ipairs(entries) do
-                local label, key, applyFn = entry[1], entry[2], entry[3]
-                local titleRow = ThemeBox:AddTitle(label)
-                titleRow:AddColorPicker({ Default = Library.Configuration[key], Function = function(color) applyFn(color) end })
-            end
+            MenuToggle:Set(guiVisible)
         end
+    })
 
-        return UITab
+    if isThemeCustomizable then
+        local ThemeBox = UITab:AddLeftBox("Theme")
+        local entries  = {
+            { "Background",   "Background",   applyBackground   },
+            { "Inner",        "Inner",        applyInner        },
+            { "TopBar",       "TopBar",       applyTopBar       },
+            { "Accent",       "Accent",       applyAccent       },
+            { "Tab Active",   "TabActive",    applyTabActive    },
+            { "Tab Inactive", "TabInactive",  applyTabInactive  },
+            { "Fill Color",   "ActiveToggle", applyActiveToggle },
+        }
+        for _, entry in ipairs(entries) do
+            local label, key, applyFn = entry[1], entry[2], entry[3]
+            local titleRow = ThemeBox:AddTitle(label)
+            titleRow:AddColorPicker({ Default = Library.Configuration[key], Function = function(color) applyFn(color) end })
+        end
     end
+
+    return UITab
+end
 
     return Window
 end
