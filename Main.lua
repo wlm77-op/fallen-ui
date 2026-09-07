@@ -429,6 +429,53 @@ function Library:CreateWindow(Params)
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
+    local dragging = false
+local dragStartMouse = Vector2.new()
+local dragStartPos = UDim2.new()
+
+trackConn(UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+
+    local mouse = Vector2.new(input.Position.X, input.Position.Y)
+    local abs   = TopBar.AbsolutePosition
+    local size  = TopBar.AbsoluteSize
+
+    local inside =
+        mouse.X >= abs.X and mouse.X <= abs.X + size.X and
+        mouse.Y >= abs.Y and mouse.Y <= abs.Y + size.Y
+
+    if not inside then return end
+
+    dragging       = true
+    dragStartMouse = mouse
+    dragStartPos   = MainFrame.Position
+end))
+
+trackConn(UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end))
+
+trackConn(UserInputService.InputChanged:Connect(function(input)
+    if not dragging then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+
+    local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStartMouse
+
+    local screenSize = ScreenGui.AbsoluteSize
+    local frameSize  = MainFrame.AbsoluteSize
+
+    local originX = dragStartPos.X.Scale * screenSize.X + dragStartPos.X.Offset
+    local originY = dragStartPos.Y.Scale * screenSize.Y + dragStartPos.Y.Offset
+
+    local newX = math.clamp(originX + delta.X, frameSize.X / 2, screenSize.X - frameSize.X / 2)
+    local newY = math.clamp(originY + delta.Y, frameSize.Y / 2, screenSize.Y - frameSize.Y / 2)
+
+    MainFrame.Position = UDim2.new(0, newX, 0, newY)
+end))
+
     local TabScrollFrame = CreateObj("ScrollingFrame", {
         Parent               = TopBar,
         BackgroundTransparency = 1,
