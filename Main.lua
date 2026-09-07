@@ -1440,21 +1440,19 @@ function Library:CreateWindow(Params)
 
     -- ↓ was: AddTitle("Menu Key") + AddKeyPicker(...)
     local MenuToggle = MenuBox:AddToggle({
-        Title   = "Menu Key",
-        Default = true,
-        Function = function(val)
-            guiVisible = val
-            ScreenGui.Enabled = val
-        end
-    })
-    MenuToggle:AddKeyPicker({
-        Key      = Window.ToggleKeybind,
-        Function = function()
-            guiVisible = not guiVisible
-            ScreenGui.Enabled = guiVisible
-            MenuToggle:Set(guiVisible)
-        end
-    })
+    Title    = "Menu Key",
+    Default  = true,
+    Function = function(val)
+        guiVisible = val
+        ScreenGui.Enabled = val
+    end
+})
+MenuToggle:AddKeyPicker({
+    Key      = Window.ToggleKeybind,
+    Function = function(val)
+        MenuToggle:Set(val)
+    end
+})
 
     if isThemeCustomizable then
         local ThemeBox = UITab:AddLeftBox("Theme")
