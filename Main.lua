@@ -303,55 +303,35 @@ end
 local function applyBackground(color)
     Library.Configuration.Background = color
     for _, f in ipairs(ScreenGui:GetDescendants()) do
-        if f:IsA("Frame") and f.Name == "MainFrame" then
-            f.BackgroundColor3 = color
-        end
-        if f:IsA("Frame") and (f.Name == "SideFrame" or f.Name == "SideFrame2") then
-            f.BackgroundColor3 = color
-        end
+        if f:IsA("Frame") and f.Name == "MainFrame" then f.BackgroundColor3 = color end
+        if f:IsA("Frame") and (f.Name == "SideFrame" or f.Name == "SideFrame2") then f.BackgroundColor3 = color end
     end
 end
 
 local function applyInner(color)
     Library.Configuration.Inner = color
     for _, f in ipairs(ScreenGui:GetDescendants()) do
-        if f:IsA("Frame") and f.Name == "InnerFrame" then
-            f.BackgroundColor3 = color
-        end
-        if f:IsA("Frame") and (f.Name == "SideInnerFrame" or f.Name == "SideInnerFrame2") then
-            f.BackgroundColor3 = color
-        end
+        if f:IsA("Frame") and f.Name == "InnerFrame" then f.BackgroundColor3 = color end
+        if f:IsA("Frame") and (f.Name == "SideInnerFrame" or f.Name == "SideInnerFrame2") then f.BackgroundColor3 = color end
     end
 end
 
 local function applyTopBar(color)
     Library.Configuration.TopBar = color
     for _, f in ipairs(ScreenGui:GetDescendants()) do
-        if f:IsA("Frame") and f.Name == "TopBar" then
-            f.BackgroundColor3 = color
-        end
+        if f:IsA("Frame") and f.Name == "TopBar" then f.BackgroundColor3 = color end
     end
 end
 
 local function applyAccent(color)
     Library.Configuration.Accent = color
     for _, s in ipairs(ScreenGui:GetDescendants()) do
-        if s:IsA("UIStroke") then
-            s.Color = color
-        end
-        if s:IsA("ScrollingFrame") then
-            s.ScrollBarImageColor3 = color
-        end
+        if s:IsA("UIStroke") then s.Color = color end
+        if s:IsA("ScrollingFrame") then s.ScrollBarImageColor3 = color end
     end
 end
 
 local function applyTabActive(color)
-    Library.Configuration.TabActive = color
-    for _, f in ipairs(ScreenGui:GetDescendants()) do
-        if f:IsA("TextButton") and f.BackgroundColor3 == Library.Configuration.TabActive then
-            f.BackgroundColor3 = color
-        end
-    end
     Library.Configuration.TabActive = color
 end
 
@@ -362,21 +342,17 @@ end
 local function applyActiveToggle(color)
     Library.Configuration.ActiveToggle = color
     for _, f in ipairs(ScreenGui:GetDescendants()) do
-        if f:IsA("Frame") and f.Name == "Fill" then
-            f.BackgroundColor3 = color
-        end
-        if f:IsA("Frame") and f.Name == "SliderFill" then
-            f.BackgroundColor3 = color
-        end
+        if f:IsA("Frame") and f.Name == "Fill" then f.BackgroundColor3 = color end
+        if f:IsA("Frame") and f.Name == "SliderFill" then f.BackgroundColor3 = color end
     end
 end
 
 function Library:CreateWindow(Params)
     local Clogs = Params.Changelogs or {}
 
-    local tabButtons = {}
+    local tabButtons  = {}
     local tabContents = {}
-    local activeTab = nil
+    local activeTab   = nil
 
     local MainFrame = CreateObj("Frame", {
         Name             = "MainFrame",
@@ -389,10 +365,8 @@ function Library:CreateWindow(Params)
     })
 
     CreateObj("UIStroke", {
-        Parent          = MainFrame,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        Parent = MainFrame, Color = Library.Configuration.Accent,
+        Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
     local InnerFrame = CreateObj("Frame", {
@@ -406,10 +380,8 @@ function Library:CreateWindow(Params)
     })
 
     CreateObj("UIStroke", {
-        Parent          = InnerFrame,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        Parent = InnerFrame, Color = Library.Configuration.Accent,
+        Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
     local TopBar = CreateObj("Frame", {
@@ -423,58 +395,44 @@ function Library:CreateWindow(Params)
     })
 
     CreateObj("UIStroke", {
-        Parent          = TopBar,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        Parent = TopBar, Color = Library.Configuration.Accent,
+        Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
-    local dragging = false
-local dragStartMouse = Vector2.new()
-local dragStartPos = UDim2.new()
+    local dragging       = false
+    local dragStartMouse = Vector2.new()
+    local dragStartPos   = UDim2.new()
 
-trackConn(UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+    trackConn(UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+        local mouse  = Vector2.new(input.Position.X, input.Position.Y)
+        local abs    = TopBar.AbsolutePosition
+        local size   = TopBar.AbsoluteSize
+        local inside = mouse.X >= abs.X and mouse.X <= abs.X + size.X
+                    and mouse.Y >= abs.Y and mouse.Y <= abs.Y + size.Y
+        if not inside then return end
+        dragging       = true
+        dragStartMouse = mouse
+        dragStartPos   = MainFrame.Position
+    end))
 
-    local mouse = Vector2.new(input.Position.X, input.Position.Y)
-    local abs   = TopBar.AbsolutePosition
-    local size  = TopBar.AbsoluteSize
+    trackConn(UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end))
 
-    local inside =
-        mouse.X >= abs.X and mouse.X <= abs.X + size.X and
-        mouse.Y >= abs.Y and mouse.Y <= abs.Y + size.Y
-
-    if not inside then return end
-
-    dragging       = true
-    dragStartMouse = mouse
-    dragStartPos   = MainFrame.Position
-end))
-
-trackConn(UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end))
-
-trackConn(UserInputService.InputChanged:Connect(function(input)
-    if not dragging then return end
-    if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-
-    local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStartMouse
-
-    local screenSize = ScreenGui.AbsoluteSize
-    local frameSize  = MainFrame.AbsoluteSize
-
-    local originX = dragStartPos.X.Scale * screenSize.X + dragStartPos.X.Offset
-    local originY = dragStartPos.Y.Scale * screenSize.Y + dragStartPos.Y.Offset
-
-    local newX = math.clamp(originX + delta.X, frameSize.X / 2, screenSize.X - frameSize.X / 2)
-    local newY = math.clamp(originY + delta.Y, frameSize.Y / 2, screenSize.Y - frameSize.Y / 2)
-
-    MainFrame.Position = UDim2.new(0, newX, 0, newY)
-end))
+    trackConn(UserInputService.InputChanged:Connect(function(input)
+        if not dragging then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+        local delta      = Vector2.new(input.Position.X, input.Position.Y) - dragStartMouse
+        local screenSize = ScreenGui.AbsoluteSize
+        local frameSize  = MainFrame.AbsoluteSize
+        local originX    = dragStartPos.X.Scale * screenSize.X + dragStartPos.X.Offset
+        local originY    = dragStartPos.Y.Scale * screenSize.Y + dragStartPos.Y.Offset
+        local newX       = math.clamp(originX + delta.X, frameSize.X / 2, screenSize.X - frameSize.X / 2)
+        local newY       = math.clamp(originY + delta.Y, frameSize.Y / 2, screenSize.Y - frameSize.Y / 2)
+        MainFrame.Position = UDim2.new(0, newX, 0, newY)
+    end))
 
     local TabScrollFrame = CreateObj("ScrollingFrame", {
         Parent               = TopBar,
@@ -549,10 +507,8 @@ end))
     })
 
     CreateObj("UIStroke", {
-        Parent          = SideFrame,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        Parent = SideFrame, Color = Library.Configuration.Accent,
+        Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
     local SideInnerFrame = CreateObj("Frame", {
@@ -566,10 +522,8 @@ end))
     })
 
     CreateObj("UIStroke", {
-        Parent          = SideInnerFrame,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        Parent = SideInnerFrame, Color = Library.Configuration.Accent,
+        Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
     CreateObj("TextLabel", {
@@ -619,10 +573,8 @@ end))
     })
 
     CreateObj("UIStroke", {
-        Parent          = SideFrame2,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        Parent = SideFrame2, Color = Library.Configuration.Accent,
+        Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
     local SideInnerFrame2 = CreateObj("Frame", {
@@ -636,10 +588,8 @@ end))
     })
 
     CreateObj("UIStroke", {
-        Parent          = SideInnerFrame2,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        Parent = SideInnerFrame2, Color = Library.Configuration.Accent,
+        Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 
     CreateObj("TextLabel", {
@@ -713,7 +663,7 @@ end))
         for name, btn in pairs(tabButtons) do
             local isActive = (name == tabName)
             btn.BackgroundColor3 = isActive and Library.Configuration.TabActive or Library.Configuration.TabInactive
-            btn.TextColor3 = isActive and Library.Configuration.TabText or Library.Configuration.TabTextDim
+            btn.TextColor3       = isActive and Library.Configuration.TabText   or Library.Configuration.TabTextDim
         end
         for name, frame in pairs(tabContents) do
             frame.Visible = (name == tabName)
@@ -721,11 +671,10 @@ end))
     end
 
     local guiVisible = true
-    local Window = {}
+    local Window     = {}
     Window.ToggleKeybind = Enum.KeyCode.K
 
     function Window:Unload()
-        -- flush every tracked InputBegan / InputEnded connection
         for _, conn in ipairs(Library._connections) do
             pcall(function() conn:Disconnect() end)
         end
@@ -734,7 +683,6 @@ end))
         NotifGui:Destroy()
     end
 
-    -- window visibility toggle — tracked so Unload can kill it
     trackConn(UserInputService.InputBegan:Connect(function(input, processed)
         if processed then return end
         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Window.ToggleKeybind then
@@ -745,8 +693,8 @@ end))
 
     function Window:AddTab(name)
         local textService = game:GetService("TextService")
-        local textSize = textService:GetTextSize(name, 12, Enum.Font.Code, Vector2.new(1000, 28))
-        local btnWidth = math.max(textSize.X + 16, 40)
+        local textSize    = textService:GetTextSize(name, 12, Enum.Font.Code, Vector2.new(1000, 28))
+        local btnWidth    = math.max(textSize.X + 16, 40)
 
         local TabBtn = CreateObj("TextButton", {
             Parent           = TabButtonContainer,
@@ -762,10 +710,8 @@ end))
         })
 
         CreateObj("UIStroke", {
-            Parent          = TabBtn,
-            Color           = Library.Configuration.Accent,
-            Thickness       = 1,
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            Parent = TabBtn, Color = Library.Configuration.Accent,
+            Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         })
 
         local ColumnsFrame = CreateObj("Frame", {
@@ -819,16 +765,12 @@ end))
             SortOrder           = Enum.SortOrder.LayoutOrder
         })
 
-        tabButtons[name] = TabBtn
+        tabButtons[name]  = TabBtn
         tabContents[name] = ColumnsFrame
 
-        if activeTab == nil then
-            setActiveTab(name)
-        end
+        if activeTab == nil then setActiveTab(name) end
 
-        TabBtn.MouseButton1Click:Connect(function()
-            setActiveTab(name)
-        end)
+        TabBtn.MouseButton1Click:Connect(function() setActiveTab(name) end)
 
         local boxCountLeft  = 0
         local boxCountRight = 0
@@ -836,25 +778,26 @@ end))
         local function BuildBox(parent, counter, label)
             counter = counter + 1
 
+            -- WrapperFrame: AutomaticSize.Y — no manual AbsoluteSize connection
             local WrapperFrame = CreateObj("Frame", {
                 Parent           = parent,
-                BackgroundColor3 = Color3.fromRGB(10,10,10),
+                BackgroundColor3 = Color3.fromRGB(10, 10, 10),
                 BorderSizePixel  = 0,
                 Size             = UDim2.new(1, 0, 0, 0),
+                AutomaticSize    = Enum.AutomaticSize.Y,
                 LayoutOrder      = counter,
                 ClipsDescendants = false
             })
 
             CreateObj("UIStroke", {
-                Parent          = WrapperFrame,
-                Color           = Library.Configuration.Accent,
-                Thickness       = 1,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+                Parent = WrapperFrame, Color = Library.Configuration.Accent,
+                Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
             })
 
+            -- BoxFrame: AutomaticSize.Y — grows with content
             local BoxFrame = CreateObj("Frame", {
                 Parent           = WrapperFrame,
-                BackgroundColor3 = Color3.fromRGB(10,10,10),
+                BackgroundColor3 = Color3.fromRGB(10, 10, 10),
                 BorderSizePixel  = 0,
                 Position         = UDim2.new(0, 1, 0, 1),
                 Size             = UDim2.new(1, -2, 0, 0),
@@ -875,13 +818,9 @@ end))
                 FillDirection       = Enum.FillDirection.Vertical,
                 HorizontalAlignment = Enum.HorizontalAlignment.Left,
                 VerticalAlignment   = Enum.VerticalAlignment.Top,
-                Padding             = UDim.new(0, 3),
+                Padding             = UDim.new(0, 4),
                 SortOrder           = Enum.SortOrder.LayoutOrder
             })
-
-            BoxFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-                WrapperFrame.Size = UDim2.new(1, 0, 0, BoxFrame.AbsoluteSize.Y + 2)
-            end)
 
             if label and label ~= "" then
                 CreateObj("TextLabel", {
@@ -899,6 +838,7 @@ end))
                 })
             end
 
+            -- ContentList: AutomaticSize.Y — gap between elements set here
             local ContentList = CreateObj("Frame", {
                 Parent              = BoxFrame,
                 BackgroundTransparency = 1,
@@ -913,7 +853,7 @@ end))
                 FillDirection       = Enum.FillDirection.Vertical,
                 HorizontalAlignment = Enum.HorizontalAlignment.Left,
                 VerticalAlignment   = Enum.VerticalAlignment.Top,
-                Padding             = UDim.new(0, 3),
+                Padding             = UDim.new(0, 5),   -- gap between buttons/toggles/etc
                 SortOrder           = Enum.SortOrder.LayoutOrder
             })
 
@@ -945,7 +885,6 @@ end))
                 })
 
                 local rightOffset = 0
-
                 local function shrinkTitle(px)
                     rightOffset = rightOffset + px
                     TitleLabel.Size = UDim2.new(1, -rightOffset, 1, 0)
@@ -953,13 +892,8 @@ end))
 
                 local TitleObj = {}
 
-                function TitleObj:SetText(str)
-                    TitleLabel.Text = tostring(str)
-                end
-
-                function TitleObj:SetColor(color)
-                    TitleLabel.TextColor3 = color
-                end
+                function TitleObj:SetText(str)  TitleLabel.Text      = tostring(str) end
+                function TitleObj:SetColor(color) TitleLabel.TextColor3 = color end
 
                 function TitleObj:AddKeyPicker(KParams)
                     local DefaultKey = KParams.Key      or Enum.KeyCode.E
@@ -978,58 +912,33 @@ end))
                         Size             = UDim2.new(0, 32, 0, 12),
                         ZIndex           = 6,
                     })
-
-                    CreateObj("UIStroke", {
-                        Parent          = KBox,
-                        Color           = Library.Configuration.Accent,
-                        Thickness       = 1,
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    })
+                    CreateObj("UIStroke", { Parent = KBox, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
                     local KLabel = CreateObj("TextLabel", {
-                        Parent              = KBox,
-                        BackgroundTransparency = 1,
-                        Size                = UDim2.new(1, 0, 1, 0),
-                        Text                = DefaultKey.Name,
-                        TextColor3          = Color3.fromRGB(160, 160, 160),
-                        TextSize            = 9,
-                        FontFace            = UIFont,
-                        TextXAlignment      = Enum.TextXAlignment.Center,
-                        TextYAlignment      = Enum.TextYAlignment.Center,
-                        ClipsDescendants    = true,
-                        ZIndex              = 7,
+                        Parent = KBox, BackgroundTransparency = 1, Size = UDim2.new(1,0,1,0),
+                        Text = DefaultKey.Name, TextColor3 = Color3.fromRGB(160,160,160),
+                        TextSize = 9, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Center,
+                        TextYAlignment = Enum.TextYAlignment.Center, ClipsDescendants = true, ZIndex = 7,
                     })
-
                     local KBtn = CreateObj("TextButton", {
-                        Parent              = KBox,
-                        BackgroundTransparency = 1,
-                        BorderSizePixel     = 0,
-                        Size                = UDim2.new(1, 0, 1, 0),
-                        Text                = "",
-                        ZIndex              = 8,
+                        Parent = KBox, BackgroundTransparency = 1, BorderSizePixel = 0,
+                        Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 8,
                     })
 
                     local function startListen()
                         if Listening then return end
-                        Listening         = true
-                        KLabel.Text       = "..."
-                        KLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        Listening = true; KLabel.Text = "..."; KLabel.TextColor3 = Color3.fromRGB(255,255,255)
                         local conn
                         conn = UserInputService.InputBegan:Connect(function(input, processed)
                             if processed then return end
                             if input.UserInputType == Enum.UserInputType.Keyboard then
-                                CurrentKey        = input.KeyCode
-                                KLabel.Text       = input.KeyCode.Name
-                                KLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
-                                Listening         = false
-                                conn:Disconnect()
+                                CurrentKey = input.KeyCode; KLabel.Text = input.KeyCode.Name
+                                KLabel.TextColor3 = Color3.fromRGB(160,160,160); Listening = false; conn:Disconnect()
                             end
                         end)
                     end
-
                     KBtn.MouseButton1Click:Connect(startListen)
 
-                    -- fire connection — tracked for Unload
                     trackConn(UserInputService.InputBegan:Connect(function(input, processed)
                         if processed or Listening then return end
                         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == CurrentKey then
@@ -1047,83 +956,41 @@ end))
                     local DefaultColor = CParams.Default or CParams.Defualt or Color3.fromRGB(200, 200, 200)
                     local CCallback    = CParams.Function or function() end
                     local ch, cs, cv   = rgbToHsv(DefaultColor.R, DefaultColor.G, DefaultColor.B)
-                    local CurrentColor  = DefaultColor
-                    local popupOpen     = false
-                    local popupFrame    = nil
+                    local CurrentColor = DefaultColor
+                    local popupOpen    = false
+                    local popupFrame   = nil
 
                     shrinkTitle(18)
 
                     local colorSwatch = CreateObj("Frame", {
-                        Parent           = Row,
-                        BackgroundColor3 = DefaultColor,
-                        BorderSizePixel  = 0,
-                        AnchorPoint      = Vector2.new(1, 0.5),
-                        Position         = UDim2.new(1, -rightOffset + 18, 0.5, 0),
-                        Size             = UDim2.new(0, 14, 0, 12),
-                        ZIndex           = 6,
+                        Parent = Row, BackgroundColor3 = DefaultColor, BorderSizePixel = 0,
+                        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -rightOffset + 18, 0.5, 0),
+                        Size = UDim2.new(0, 14, 0, 12), ZIndex = 6,
                     })
-
-                    CreateObj("UIStroke", {
-                        Parent          = colorSwatch,
-                        Color           = Library.Configuration.Accent,
-                        Thickness       = 1,
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    })
-
-                    local SwatchBtn = CreateObj("TextButton", {
-                        Parent              = colorSwatch,
-                        BackgroundTransparency = 1,
-                        BorderSizePixel     = 0,
-                        Size                = UDim2.new(1, 0, 1, 0),
-                        Text                = "",
-                        ZIndex              = 8,
-                    })
+                    CreateObj("UIStroke", { Parent = colorSwatch, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+                    local SwatchBtn = CreateObj("TextButton", { Parent = colorSwatch, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 8 })
 
                     local PW, PH  = 160, 160
                     local HH      = 12
                     local POPUP_H = PH + HH + 12 + 6
 
                     local function buildPopup()
-                        popupFrame = CreateObj("Frame", {
-                            Parent           = ScreenGui,
-                            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-                            BorderSizePixel  = 0,
-                            Size             = UDim2.new(0, PW + 16, 0, POPUP_H),
-                            Position         = UDim2.new(0, 0, 0, 0),
-                            ZIndex           = 50,
-                            ClipsDescendants = false,
-                        })
+                        popupFrame = CreateObj("Frame", { Parent = ScreenGui, BackgroundColor3 = Color3.fromRGB(20,20,20), BorderSizePixel = 0, Size = UDim2.new(0, PW+16, 0, POPUP_H), Position = UDim2.new(0,0,0,0), ZIndex = 50, ClipsDescendants = false })
+                        CreateObj("UIStroke", { Parent = popupFrame, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                        CreateObj("UIStroke", {
-                            Parent          = popupFrame,
-                            Color           = Library.Configuration.Accent,
-                            Thickness       = 1,
-                            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        })
-
-                        local svArea = CreateObj("Frame", {
-                            Parent           = popupFrame,
-                            BackgroundColor3 = Color3.fromHSV(ch, 1, 1),
-                            BorderSizePixel  = 0,
-                            Position         = UDim2.new(0, 8, 0, 8),
-                            Size             = UDim2.new(0, PW, 0, PH),
-                            ZIndex           = 51,
-                            ClipsDescendants = true,
-                        })
-
+                        local svArea = CreateObj("Frame", { Parent = popupFrame, BackgroundColor3 = Color3.fromHSV(ch,1,1), BorderSizePixel = 0, Position = UDim2.new(0,8,0,8), Size = UDim2.new(0,PW,0,PH), ZIndex = 51, ClipsDescendants = true })
                         local svWhite = CreateObj("Frame", { Parent = svArea, Size = UDim2.new(1,0,1,0), BorderSizePixel = 0, ZIndex = 52 })
                         CreateObj("UIGradient", { Parent = svWhite, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1) }), Rotation = 0 })
                         local svBlack = CreateObj("Frame", { Parent = svArea, Size = UDim2.new(1,0,1,0), BorderSizePixel = 0, ZIndex = 53 })
                         CreateObj("UIGradient", { Parent = svBlack, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,1), NumberSequenceKeypoint.new(1,0) }), Rotation = 90 })
-
-                        local svCursor = CreateObj("Frame", { Parent = svArea, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(cs, 0, 1-cv, 0), Size = UDim2.new(0,6,0,6), ZIndex = 55 })
+                        local svCursor = CreateObj("Frame", { Parent = svArea, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(cs,0,1-cv,0), Size = UDim2.new(0,6,0,6), ZIndex = 55 })
                         CreateObj("UICorner", { Parent = svCursor, CornerRadius = UDim.new(1,0) })
                         CreateObj("UIStroke", { Parent = svCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
 
-                        local hueBar = CreateObj("Frame", { Parent = popupFrame, BorderSizePixel = 0, Position = UDim2.new(0, 8, 0, PH+12), Size = UDim2.new(0, PW, 0, HH), ZIndex = 51, ClipsDescendants = true })
+                        local hueBar = CreateObj("Frame", { Parent = popupFrame, BorderSizePixel = 0, Position = UDim2.new(0,8,0,PH+12), Size = UDim2.new(0,PW,0,HH), ZIndex = 51, ClipsDescendants = true })
                         CreateObj("UIGradient", { Parent = hueBar, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0/6, Color3.fromHSV(0/6,1,1)), ColorSequenceKeypoint.new(1/6, Color3.fromHSV(1/6,1,1)), ColorSequenceKeypoint.new(2/6, Color3.fromHSV(2/6,1,1)), ColorSequenceKeypoint.new(3/6, Color3.fromHSV(3/6,1,1)), ColorSequenceKeypoint.new(4/6, Color3.fromHSV(4/6,1,1)), ColorSequenceKeypoint.new(5/6, Color3.fromHSV(5/6,1,1)), ColorSequenceKeypoint.new(6/6, Color3.fromHSV(0,1,1)) }), Rotation = 0 })
                         CreateObj("UIStroke", { Parent = hueBar, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-                        local hueCursor = CreateObj("Frame", { Parent = hueBar, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(ch, 0, 0.5, 0), Size = UDim2.new(0,4,1,0), ZIndex = 55 })
+                        local hueCursor = CreateObj("Frame", { Parent = hueBar, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(ch,0,0.5,0), Size = UDim2.new(0,4,1,0), ZIndex = 55 })
                         CreateObj("UIStroke", { Parent = hueCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
 
                         local function applyColor()
@@ -1136,36 +1003,24 @@ end))
                             CCallback(CurrentColor)
                         end
 
-                        local svDragging  = false
-                        local hueDragging = false
-
+                        local svDragging = false; local hueDragging = false
                         local svHit = CreateObj("TextButton", { Parent = svArea, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
-
                         local function updateSV(inputX, inputY)
-                            local abs  = svArea.AbsolutePosition
-                            local size = svArea.AbsoluteSize
+                            local abs = svArea.AbsolutePosition; local size = svArea.AbsoluteSize
                             cs = math.clamp((inputX - abs.X) / size.X, 0, 1)
                             cv = math.clamp(1 - (inputY - abs.Y) / size.Y, 0, 1)
                             applyColor()
                         end
-
                         svHit.MouseButton1Down:Connect(function() svDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateSV(m.X, m.Y) end)
 
                         local hueHit = CreateObj("TextButton", { Parent = hueBar, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
-
                         local function updateHue(inputX)
-                            local abs  = hueBar.AbsolutePosition
-                            local size = hueBar.AbsoluteSize
-                            ch = math.clamp((inputX - abs.X) / size.X, 0, 1)
-                            applyColor()
+                            local abs = hueBar.AbsolutePosition; local size = hueBar.AbsoluteSize
+                            ch = math.clamp((inputX - abs.X) / size.X, 0, 1); applyColor()
                         end
-
                         hueHit.MouseButton1Down:Connect(function() hueDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateHue(m.X) end)
 
-                        UserInputService.InputEnded:Connect(function(input)
-                            if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false; hueDragging = false end
-                        end)
-
+                        UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false; hueDragging = false end end)
                         UserInputService.InputChanged:Connect(function(input)
                             if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
                             if svDragging  then updateSV(input.Position.X, input.Position.Y) end
@@ -1173,30 +1028,22 @@ end))
                         end)
 
                         local function repositionPopup()
-                            local abs = colorSwatch.AbsolutePosition
-                            local pw  = popupFrame.AbsoluteSize.X
-                            local sx  = ScreenGui.AbsoluteSize.X
-                            local px  = math.clamp(abs.X - pw / 2, 4, sx - pw - 4)
+                            local abs = colorSwatch.AbsolutePosition; local pw = popupFrame.AbsoluteSize.X
+                            local sx = ScreenGui.AbsoluteSize.X; local px = math.clamp(abs.X - pw/2, 4, sx - pw - 4)
                             popupFrame.Position = UDim2.new(0, px, 0, abs.Y + 16)
                         end
-
                         task.defer(repositionPopup)
 
                         local closeConn
                         closeConn = UserInputService.InputBegan:Connect(function(input)
                             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                                 task.defer(function()
-                                    local m    = game.Players.LocalPlayer:GetMouse()
-                                    local abs  = popupFrame and popupFrame.AbsolutePosition
+                                    local m = game.Players.LocalPlayer:GetMouse()
+                                    local abs = popupFrame and popupFrame.AbsolutePosition
                                     local size = popupFrame and popupFrame.AbsoluteSize
                                     if not abs then return end
                                     local inside = m.X >= abs.X and m.X <= abs.X + size.X and m.Y >= abs.Y and m.Y <= abs.Y + size.Y
-                                    if not inside then
-                                        popupOpen = false
-                                        popupFrame:Destroy()
-                                        popupFrame = nil
-                                        closeConn:Disconnect()
-                                    end
+                                    if not inside then popupOpen = false; popupFrame:Destroy(); popupFrame = nil; closeConn:Disconnect() end
                                 end)
                             end
                         end)
@@ -1220,23 +1067,13 @@ end))
                 local Title    = Params.Title    or "Button"
                 local Callback = Params.Function or function() end
 
-                local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 16), LayoutOrder = #self.Content:GetChildren() })
-
+                local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,0,16), LayoutOrder = #self.Content:GetChildren() })
                 local Btn = CreateObj("TextButton", {
-                    Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-                    BorderSizePixel  = 0,
-                    Size             = UDim2.new(1, 0, 1, 0),
-                    Text             = Title,
-                    TextColor3       = Color3.fromRGB(200, 200, 200),
-                    TextSize         = 12,
-                    FontFace         = UIFont,
-                    TextXAlignment   = Enum.TextXAlignment.Center,
-                    TextYAlignment   = Enum.TextYAlignment.Center,
-                    AutoButtonColor  = false,
-                    ZIndex           = 5
+                    Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0,
+                    Size = UDim2.new(1,0,1,0), Text = Title, TextColor3 = Color3.fromRGB(200,200,200),
+                    TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Center,
+                    TextYAlignment = Enum.TextYAlignment.Center, AutoButtonColor = false, ZIndex = 5
                 })
-
                 CreateObj("UIStroke", { Parent = Btn, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
                 Btn.MouseButton1Click:Connect(function() Callback() end)
 
@@ -1251,17 +1088,15 @@ end))
                 local Callback = Params.Function or function() end
                 local State    = Default
 
-                local Wrapper = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 16), LayoutOrder = #self.Content:GetChildren(), ClipsDescendants = false })
-                local Row     = CreateObj("Frame", { Parent = Wrapper, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 16), ClipsDescendants = false })
+                local Wrapper = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,0,16), LayoutOrder = #self.Content:GetChildren(), ClipsDescendants = false })
+                local Row     = CreateObj("Frame", { Parent = Wrapper, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,0,16), ClipsDescendants = false })
 
-                local CheckBox = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10, 10, 10), BorderSizePixel = 0, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.new(0, 12, 0, 12) })
+                local CheckBox = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, AnchorPoint = Vector2.new(0,0.5), Position = UDim2.new(0,0,0.5,0), Size = UDim2.new(0,12,0,12) })
                 CreateObj("UIStroke", { Parent = CheckBox, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+                local Fill = CreateObj("Frame", { Name = "Fill", Parent = CheckBox, BackgroundColor3 = Library.Configuration.ActiveToggle, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(0.5,0,0.5,0), Size = UDim2.new(1,0,1,0), Visible = Default })
 
-                local Fill = CreateObj("Frame", { Name = "Fill", Parent = CheckBox, BackgroundColor3 = Library.Configuration.ActiveToggle, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0), Size = UDim2.new(1, 0, 1, 0), Visible = Default })
-
-                local TitleLabel = CreateObj("TextLabel", { Parent = Row, BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(1, -18, 1, 0), Text = Title, TextColor3 = Color3.fromRGB(200, 200, 200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
-
-                local HitBtn = CreateObj("TextButton", { Parent = Row, BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Text = "", ZIndex = 5 })
+                local TitleLabel = CreateObj("TextLabel", { Parent = Row, BackgroundTransparency = 1, Position = UDim2.new(0,18,0,0), Size = UDim2.new(1,-18,1,0), Text = Title, TextColor3 = Color3.fromRGB(200,200,200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
+                local HitBtn = CreateObj("TextButton", { Parent = Row, BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.new(0,0,0,0), Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 5 })
 
                 local rightOffset = 0
                 local function shrinkTitle(px)
@@ -1271,17 +1106,11 @@ end))
                 end
 
                 HitBtn.MouseButton1Click:Connect(function()
-                    State = not State
-                    Fill.Visible = State
-                    Callback(State)
+                    State = not State; Fill.Visible = State; Callback(State)
                 end)
 
                 local Toggle = {}
-
-                function Toggle:Set(value)
-                    if type(value) ~= "boolean" then return end
-                    State = value; Fill.Visible = State; Callback(State)
-                end
+                function Toggle:Set(value) if type(value) ~= "boolean" then return end; State = value; Fill.Visible = State; Callback(State) end
 
                 function Toggle:AddKeyPicker(KParams)
                     local DefaultKey = KParams.Key      or Enum.KeyCode.E
@@ -1291,9 +1120,8 @@ end))
 
                     shrinkTitle(36)
 
-                    local KBox = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10, 10, 10), BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(rightOffset - 36), 0.5, 0), Size = UDim2.new(0, 32, 0, 12), ZIndex = 6 })
+                    local KBox = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, AnchorPoint = Vector2.new(1,0.5), Position = UDim2.new(1, -(rightOffset - 36), 0.5, 0), Size = UDim2.new(0,32,0,12), ZIndex = 6 })
                     CreateObj("UIStroke", { Parent = KBox, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-
                     local KLabel = CreateObj("TextLabel", { Parent = KBox, BackgroundTransparency = 1, Size = UDim2.new(1,0,1,0), Text = DefaultKey.Name, TextColor3 = Color3.fromRGB(160,160,160), TextSize = 9, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, ClipsDescendants = true, ZIndex = 7 })
                     local KBtn  = CreateObj("TextButton", { Parent = KBox, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 8 })
 
@@ -1308,10 +1136,8 @@ end))
                             end
                         end)
                     end
-
                     KBtn.MouseButton1Click:Connect(startListen)
 
-                    -- fire connection — tracked for Unload
                     trackConn(UserInputService.InputBegan:Connect(function(input, processed)
                         if processed or Listening then return end
                         if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == CurrentKey then
@@ -1335,9 +1161,8 @@ end))
 
                     shrinkTitle(18)
 
-                    local colorSwatch = CreateObj("Frame", { Parent = Row, BackgroundColor3 = DefaultColor, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -(rightOffset - 18), 0.5, 0), Size = UDim2.new(0, 14, 0, 12), ZIndex = 6 })
+                    local colorSwatch = CreateObj("Frame", { Parent = Row, BackgroundColor3 = DefaultColor, BorderSizePixel = 0, AnchorPoint = Vector2.new(1,0.5), Position = UDim2.new(1, -(rightOffset - 18), 0.5, 0), Size = UDim2.new(0,14,0,12), ZIndex = 6 })
                     CreateObj("UIStroke", { Parent = colorSwatch, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-
                     local SwatchBtn = CreateObj("TextButton", { Parent = colorSwatch, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 8 })
 
                     local PW, PH  = 160, 160
@@ -1353,7 +1178,6 @@ end))
                         CreateObj("UIGradient", { Parent = svWhite, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1) }), Rotation = 0 })
                         local svBlack = CreateObj("Frame", { Parent = svArea, Size = UDim2.new(1,0,1,0), BorderSizePixel = 0, ZIndex = 53 })
                         CreateObj("UIGradient", { Parent = svBlack, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0)) }), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,1), NumberSequenceKeypoint.new(1,0) }), Rotation = 90 })
-
                         local svCursor = CreateObj("Frame", { Parent = svArea, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(s,0,1-v,0), Size = UDim2.new(0,6,0,6), ZIndex = 55 })
                         CreateObj("UICorner", { Parent = svCursor, CornerRadius = UDim.new(1,0) })
                         CreateObj("UIStroke", { Parent = svCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
@@ -1361,7 +1185,6 @@ end))
                         local hueBar = CreateObj("Frame", { Parent = popupFrame, BorderSizePixel = 0, Position = UDim2.new(0,8,0,PH+12), Size = UDim2.new(0,HW,0,HH), ZIndex = 51, ClipsDescendants = true })
                         CreateObj("UIGradient", { Parent = hueBar, Color = ColorSequence.new({ ColorSequenceKeypoint.new(0/6, Color3.fromHSV(0/6,1,1)), ColorSequenceKeypoint.new(1/6, Color3.fromHSV(1/6,1,1)), ColorSequenceKeypoint.new(2/6, Color3.fromHSV(2/6,1,1)), ColorSequenceKeypoint.new(3/6, Color3.fromHSV(3/6,1,1)), ColorSequenceKeypoint.new(4/6, Color3.fromHSV(4/6,1,1)), ColorSequenceKeypoint.new(5/6, Color3.fromHSV(5/6,1,1)), ColorSequenceKeypoint.new(6/6, Color3.fromHSV(0,1,1)) }), Rotation = 0 })
                         CreateObj("UIStroke", { Parent = hueBar, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-
                         local hueCursor = CreateObj("Frame", { Parent = hueBar, BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(h,0,0.5,0), Size = UDim2.new(0,4,1,0), ZIndex = 55 })
                         CreateObj("UIStroke", { Parent = hueCursor, Color = Color3.fromRGB(0,0,0), Thickness = 1 })
 
@@ -1375,36 +1198,23 @@ end))
                             CCallback(CurrentColor)
                         end
 
-                        local svDragging  = false
-                        local hueDragging = false
-
+                        local svDragging = false; local hueDragging = false
                         local svHit = CreateObj("TextButton", { Parent = svArea, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
-
                         local function updateSV(inputX, inputY)
-                            local abs  = svArea.AbsolutePosition
-                            local size = svArea.AbsoluteSize
+                            local abs = svArea.AbsolutePosition; local size = svArea.AbsoluteSize
                             s = math.clamp((inputX - abs.X) / size.X, 0, 1)
-                            v = math.clamp(1 - (inputY - abs.Y) / size.Y, 0, 1)
-                            applyColor()
+                            v = math.clamp(1 - (inputY - abs.Y) / size.Y, 0, 1); applyColor()
                         end
-
                         svHit.MouseButton1Down:Connect(function() svDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateSV(m.X, m.Y) end)
 
                         local hueHit = CreateObj("TextButton", { Parent = hueBar, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 56 })
-
                         local function updateHue(inputX)
-                            local abs  = hueBar.AbsolutePosition
-                            local size = hueBar.AbsoluteSize
-                            h = math.clamp((inputX - abs.X) / size.X, 0, 1)
-                            applyColor()
+                            local abs = hueBar.AbsolutePosition; local size = hueBar.AbsoluteSize
+                            h = math.clamp((inputX - abs.X) / size.X, 0, 1); applyColor()
                         end
-
                         hueHit.MouseButton1Down:Connect(function() hueDragging = true; local m = game.Players.LocalPlayer:GetMouse(); updateHue(m.X) end)
 
-                        UserInputService.InputEnded:Connect(function(input)
-                            if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false; hueDragging = false end
-                        end)
-
+                        UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false; hueDragging = false end end)
                         UserInputService.InputChanged:Connect(function(input)
                             if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
                             if svDragging  then updateSV(input.Position.X, input.Position.Y) end
@@ -1412,21 +1222,18 @@ end))
                         end)
 
                         local function repositionPopup()
-                            local abs = colorSwatch.AbsolutePosition
-                            local pw  = popupFrame.AbsoluteSize.X
-                            local sx  = ScreenGui.AbsoluteSize.X
-                            local px  = math.clamp(abs.X - pw / 2, 4, sx - pw - 4)
+                            local abs = colorSwatch.AbsolutePosition; local pw = popupFrame.AbsoluteSize.X
+                            local sx = ScreenGui.AbsoluteSize.X; local px = math.clamp(abs.X - pw/2, 4, sx - pw - 4)
                             popupFrame.Position = UDim2.new(0, px, 0, abs.Y + 16)
                         end
-
                         task.defer(repositionPopup)
 
                         local closeConn
                         closeConn = UserInputService.InputBegan:Connect(function(input)
                             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                                 task.defer(function()
-                                    local m    = game.Players.LocalPlayer:GetMouse()
-                                    local abs  = popupFrame and popupFrame.AbsolutePosition
+                                    local m = game.Players.LocalPlayer:GetMouse()
+                                    local abs = popupFrame and popupFrame.AbsolutePosition
                                     local size = popupFrame and popupFrame.AbsoluteSize
                                     if not abs then return end
                                     local inside = m.X >= abs.X and m.X <= abs.X + size.X and m.Y >= abs.Y and m.Y <= abs.Y + size.Y
@@ -1459,20 +1266,17 @@ end))
                 local Value    = math.clamp(Default, Min, Max)
                 local Dragging = false
 
-                local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 32), LayoutOrder = #self.Content:GetChildren() })
+                local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,0,32), LayoutOrder = #self.Content:GetChildren() })
                 local Header = CreateObj("Frame", { Parent = Row, BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.new(0,0,0,0), Size = UDim2.new(1,0,0,14) })
 
                 CreateObj("TextLabel", { Parent = Header, BackgroundTransparency = 1, Position = UDim2.new(0,0,0,0), Size = UDim2.new(0.6,0,1,0), Text = Title, TextColor3 = Color3.fromRGB(200,200,200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
-
                 local ValueLabel = CreateObj("TextLabel", { Parent = Header, BackgroundTransparency = 1, Position = UDim2.new(0.6,0,0,0), Size = UDim2.new(0.4,0,1,0), Text = tostring(Value) .. "/" .. tostring(Max), TextColor3 = Color3.fromRGB(160,160,160), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
 
                 local Track = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Position = UDim2.new(0,0,0,18), Size = UDim2.new(1,0,0,12) })
                 CreateObj("UIStroke", { Parent = Track, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
                 local function pctFor(val) return (val - Min) / (Max - Min) end
-
                 local SliderFill = CreateObj("Frame", { Name = "SliderFill", Parent = Track, BackgroundColor3 = Library.Configuration.ActiveToggle, BorderSizePixel = 0, Position = UDim2.new(0,0,0,0), Size = UDim2.new(pctFor(Value),0,1,0) })
-
                 local HitBox = CreateObj("TextButton", { Parent = Track, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 5 })
 
                 local function updateFromX(inputX)
@@ -1482,10 +1286,8 @@ end))
                     local newVal = math.floor(Min + (Max - Min) * rel + 0.5)
                     newVal       = math.clamp(newVal, Min, Max)
                     if newVal ~= Value then
-                        Value = newVal
-                        SliderFill.Size = UDim2.new(pctFor(Value), 0, 1, 0)
-                        ValueLabel.Text = tostring(Value) .. "/" .. tostring(Max)
-                        Callback(Value)
+                        Value = newVal; SliderFill.Size = UDim2.new(pctFor(Value),0,1,0)
+                        ValueLabel.Text = tostring(Value) .. "/" .. tostring(Max); Callback(Value)
                     end
                 end
 
@@ -1526,22 +1328,20 @@ end))
                 end
 
                 local Row = CreateObj("Frame", { Parent = self.Content, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,0,38), LayoutOrder = #self.Content:GetChildren(), ClipsDescendants = false, ZIndex = 1 })
-
                 CreateObj("TextLabel", { Parent = Row, BackgroundTransparency = 1, Position = UDim2.new(0,0,0,0), Size = UDim2.new(1,0,0,14), Text = Title, TextColor3 = Color3.fromRGB(200,200,200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false })
 
                 local Head = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Position = UDim2.new(0,0,0,18), Size = UDim2.new(1,0,0,16), ZIndex = 2 })
                 CreateObj("UIStroke", { Parent = Head, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-
                 local ValueLabel = CreateObj("TextLabel", { Parent = Head, BackgroundTransparency = 1, Position = UDim2.new(0,6,0,0), Size = UDim2.new(1,-20,1,0), Text = buildHeaderText(), TextColor3 = Color3.fromRGB(200,200,200), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, RichText = false, ClipsDescendants = true, ZIndex = 3 })
                 local Arrow      = CreateObj("TextLabel", { Parent = Head, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1,0.5), Position = UDim2.new(1,-6,0.5,0), Size = UDim2.new(0,12,1,0), Text = "+", TextColor3 = Color3.fromRGB(160,160,160), TextSize = 12, FontFace = UIFont, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, RichText = false, ZIndex = 3 })
                 local HeadButton = CreateObj("TextButton", { Parent = Head, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1,0,1,0), Text = "", ZIndex = 4 })
 
-                local ListFrame = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Position = UDim2.new(0,0,0,38), Size = UDim2.new(1,0,1,0), ClipsDescendants = true, Visible = false, ZIndex = 5 })
+                local ListFrame = CreateObj("Frame", { Parent = Row, BackgroundColor3 = Color3.fromRGB(10,10,10), BorderSizePixel = 0, Position = UDim2.new(0,0,0,38), Size = UDim2.new(1,0,0,0), ClipsDescendants = true, Visible = false, ZIndex = 5 })
                 CreateObj("UIStroke", { Parent = ListFrame, Color = Library.Configuration.Accent, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
                 CreateObj("UIListLayout", { Parent = ListFrame, FillDirection = Enum.FillDirection.Vertical, HorizontalAlignment = Enum.HorizontalAlignment.Left, VerticalAlignment = Enum.VerticalAlignment.Top, Padding = UDim.new(0,0), SortOrder = Enum.SortOrder.LayoutOrder })
 
                 local function closeList() Open = false; ListFrame.Visible = false; ListFrame.Size = UDim2.new(1,0,0,0); Arrow.Text = "+"; Row.Size = UDim2.new(1,0,0,37) end
-                local function openList()  Open = true;  ListFrame.Visible = true;  local h2 = #Values * 16; ListFrame.Size = UDim2.new(1,0,0,h2); Arrow.Text = "-"; Row.Size = UDim2.new(1,0,0,37+h2+1) end
+                local function openList()  Open = true;  ListFrame.Visible = true; local h2 = #Values * 16; ListFrame.Size = UDim2.new(1,0,0,h2); Arrow.Text = "-"; Row.Size = UDim2.new(1,0,0,37+h2+1) end
 
                 local function selectSingle(val)
                     CurrentValue = val; ValueLabel.Text = tostring(val)
@@ -1573,7 +1373,6 @@ end))
                 HeadButton.MouseButton1Click:Connect(function() if Open then closeList() else openList() end end)
 
                 local Dropdown = {}
-
                 function Dropdown:Set(value)
                     if Multi then
                         if type(value) ~= "table" then return end
@@ -1588,12 +1387,10 @@ end))
                         for _, v in ipairs(Values) do if v == value then selectSingle(value); return end end
                     end
                 end
-
                 function Dropdown:Get()
                     if Multi then local out = {}; for _, v in ipairs(Values) do if selectedSet[v] then out[#out+1] = v end end; return out end
                     return CurrentValue
                 end
-
                 function Dropdown:Refresh(newValues)
                     Values = newValues
                     for _, btn in pairs(optionButtons) do btn:Destroy() end
@@ -1636,37 +1433,37 @@ end))
     end
 
     function Window:BuildUITab(tabName, isThemeCustomizable)
-    local UITab  = self:AddTab(tabName or "UI")
-    local MenuBox = UITab:AddRightBox("Menu")
+        local UITab   = self:AddTab(tabName or "UI")
+        local MenuBox = UITab:AddRightBox("Menu")
 
-    MenuBox:AddButton({ Title = "Unload", Function = function() self:Unload() end })
+        MenuBox:AddButton({ Title = "Unload", Function = function() self:Unload() end })
 
-    local ShowMenuTitle = MenuBox:AddTitle("Menu Key")
-    ShowMenuTitle:AddKeyPicker({ Key = Window.ToggleKeybind, Function = function()
-        guiVisible = not guiVisible
-        ScreenGui.Enabled = guiVisible
-    end })
+        local ShowMenuTitle = MenuBox:AddTitle("Menu Key")
+        ShowMenuTitle:AddKeyPicker({ Key = Window.ToggleKeybind, Function = function()
+            guiVisible = not guiVisible
+            ScreenGui.Enabled = guiVisible
+        end })
 
-    if isThemeCustomizable then
-        local ThemeBox = UITab:AddLeftBox("Theme")
-        local entries  = {
-            { "Background",   "Background",  applyBackground   },
-            { "Inner",        "Inner",        applyInner        },
-            { "TopBar",       "TopBar",       applyTopBar       },
-            { "Accent",       "Accent",       applyAccent       },
-            { "Tab Active",   "TabActive",    applyTabActive    },
-            { "Tab Inactive", "TabInactive",  applyTabInactive  },
-            { "Fill Color",   "ActiveToggle", applyActiveToggle },
-        }
-        for _, entry in ipairs(entries) do
-            local label, key, applyFn = entry[1], entry[2], entry[3]
-            local titleRow = ThemeBox:AddTitle(label)
-            titleRow:AddColorPicker({ Default = Library.Configuration[key], Function = function(color) applyFn(color) end })
+        if isThemeCustomizable then
+            local ThemeBox = UITab:AddLeftBox("Theme")
+            local entries  = {
+                { "Background",   "Background",   applyBackground   },
+                { "Inner",        "Inner",        applyInner        },
+                { "TopBar",       "TopBar",       applyTopBar       },
+                { "Accent",       "Accent",       applyAccent       },
+                { "Tab Active",   "TabActive",    applyTabActive    },
+                { "Tab Inactive", "TabInactive",  applyTabInactive  },
+                { "Fill Color",   "ActiveToggle", applyActiveToggle },
+            }
+            for _, entry in ipairs(entries) do
+                local label, key, applyFn = entry[1], entry[2], entry[3]
+                local titleRow = ThemeBox:AddTitle(label)
+                titleRow:AddColorPicker({ Default = Library.Configuration[key], Function = function(color) applyFn(color) end })
+            end
         end
-    end
 
-    return UITab
-end
+        return UITab
+    end
 
     return Window
 end
