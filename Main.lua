@@ -778,7 +778,6 @@ function Library:CreateWindow(Params)
         local function BuildBox(parent, counter, label)
             counter = counter + 1
 
-            -- WrapperFrame: AutomaticSize.Y — no manual AbsoluteSize connection
             local WrapperFrame = CreateObj("Frame", {
                 Parent           = parent,
                 BackgroundColor3 = Color3.fromRGB(10, 10, 10),
@@ -794,7 +793,6 @@ function Library:CreateWindow(Params)
                 Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border
             })
 
-            -- BoxFrame: AutomaticSize.Y — grows with content
             local BoxFrame = CreateObj("Frame", {
                 Parent           = WrapperFrame,
                 BackgroundColor3 = Color3.fromRGB(10, 10, 10),
@@ -838,7 +836,6 @@ function Library:CreateWindow(Params)
                 })
             end
 
-            -- ContentList: AutomaticSize.Y — gap between elements set here
             local ContentList = CreateObj("Frame", {
                 Parent              = BoxFrame,
                 BackgroundTransparency = 1,
@@ -853,7 +850,7 @@ function Library:CreateWindow(Params)
                 FillDirection       = Enum.FillDirection.Vertical,
                 HorizontalAlignment = Enum.HorizontalAlignment.Left,
                 VerticalAlignment   = Enum.VerticalAlignment.Top,
-                Padding             = UDim.new(0, 5),   -- gap between buttons/toggles/etc
+                Padding             = UDim.new(0, 5),
                 SortOrder           = Enum.SortOrder.LayoutOrder
             })
 
@@ -892,7 +889,7 @@ function Library:CreateWindow(Params)
 
                 local TitleObj = {}
 
-                function TitleObj:SetText(str)  TitleLabel.Text      = tostring(str) end
+                function TitleObj:SetText(str)    TitleLabel.Text       = tostring(str) end
                 function TitleObj:SetColor(color) TitleLabel.TextColor3 = color end
 
                 function TitleObj:AddKeyPicker(KParams)
@@ -1302,6 +1299,91 @@ function Library:CreateWindow(Params)
                 return Slider
             end
 
+            function Box:AddTextBox(Params)
+                local Title     = Params.Title     or "TextBox"
+                local InputText = Params.InputText or "Type here..."
+                local Default   = Params.Defualt   or Params.Default or ""
+                local Callback  = Params.Function  or function() end
+
+                local Row = CreateObj("Frame", {
+                    Parent              = self.Content,
+                    BackgroundTransparency = 1,
+                    BorderSizePixel     = 0,
+                    Size                = UDim2.new(1, 0, 0, 32),
+                    LayoutOrder         = #self.Content:GetChildren(),
+                    ClipsDescendants    = false,
+                })
+
+                CreateObj("TextLabel", {
+                    Parent              = Row,
+                    BackgroundTransparency = 1,
+                    Position            = UDim2.new(0, 0, 0, 0),
+                    Size                = UDim2.new(1, 0, 0, 14),
+                    Text                = Title,
+                    TextColor3          = Color3.fromRGB(200, 200, 200),
+                    TextSize            = 12,
+                    FontFace            = UIFont,
+                    TextXAlignment      = Enum.TextXAlignment.Left,
+                    TextYAlignment      = Enum.TextYAlignment.Center,
+                    RichText            = false,
+                })
+
+                local InputFrame = CreateObj("Frame", {
+                    Parent           = Row,
+                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                    BorderSizePixel  = 0,
+                    Position         = UDim2.new(0, 0, 0, 18),
+                    Size             = UDim2.new(1, 0, 0, 16),
+                })
+
+                CreateObj("UIStroke", {
+                    Parent          = InputFrame,
+                    Color           = Library.Configuration.Accent,
+                    Thickness       = 1,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                })
+
+                local InputBox = CreateObj("TextBox", {
+                    Parent               = InputFrame,
+                    BackgroundTransparency = 1,
+                    BorderSizePixel      = 0,
+                    Position             = UDim2.new(0, 6, 0, 0),
+                    Size                 = UDim2.new(1, -12, 1, 0),
+                    Text                 = Default,
+                    PlaceholderText      = InputText,
+                    PlaceholderColor3    = Color3.fromRGB(80, 80, 80),
+                    TextColor3           = Color3.fromRGB(200, 200, 200),
+                    TextSize             = 12,
+                    FontFace             = UIFont,
+                    TextXAlignment       = Enum.TextXAlignment.Left,
+                    TextYAlignment       = Enum.TextYAlignment.Center,
+                    ClearTextOnFocus     = false,
+                    ClipsDescendants     = true,
+                    ZIndex               = 5,
+                })
+
+                InputBox.FocusLost:Connect(function()
+                    Callback(InputBox.Text)
+                end)
+
+                local TextBox = {}
+
+                function TextBox:Set(value)
+                    InputBox.Text = tostring(value)
+                    Callback(InputBox.Text)
+                end
+
+                function TextBox:Get()
+                    return InputBox.Text
+                end
+
+                function TextBox:SetPlaceholder(text)
+                    InputBox.PlaceholderText = tostring(text)
+                end
+
+                return TextBox
+            end
+
             function Box:AddDropdown(Params)
                 local Title    = Params.Title    or "Dropdown"
                 local Default  = Params.Default  or Params.Defualt or nil
@@ -1433,47 +1515,46 @@ function Library:CreateWindow(Params)
     end
 
     function Window:BuildUITab(tabName, isThemeCustomizable)
-    local UITab   = self:AddTab(tabName or "UI")
-    local MenuBox = UITab:AddRightBox("Menu")
+        local UITab   = self:AddTab(tabName or "UI")
+        local MenuBox = UITab:AddRightBox("Menu")
 
-    MenuBox:AddButton({ Title = "Unload", Function = function() self:Unload() end })
+        MenuBox:AddButton({ Title = "Unload", Function = function() self:Unload() end })
 
-    -- ↓ was: AddTitle("Menu Key") + AddKeyPicker(...)
-    local MenuToggle = MenuBox:AddToggle({
-    Title    = "Menu Key",
-    Default  = true,
-    Function = function(val)
-        guiVisible = val
-        ScreenGui.Enabled = val
-    end
-})
-MenuToggle:AddKeyPicker({
-    Key      = Window.ToggleKeybind,
-    Function = function(val)
-        MenuToggle:Set(val)
-    end
-})
+        local MenuToggle = MenuBox:AddToggle({
+            Title    = "Menu Key",
+            Default  = true,
+            Function = function(val)
+                guiVisible = val
+                ScreenGui.Enabled = val
+            end
+        })
+        MenuToggle:AddKeyPicker({
+            Key      = Window.ToggleKeybind,
+            Function = function(val)
+                MenuToggle:Set(val)
+            end
+        })
 
-    if isThemeCustomizable then
-        local ThemeBox = UITab:AddLeftBox("Theme")
-        local entries  = {
-            { "Background",   "Background",   applyBackground   },
-            { "Inner",        "Inner",        applyInner        },
-            { "TopBar",       "TopBar",       applyTopBar       },
-            { "Accent",       "Accent",       applyAccent       },
-            { "Tab Active",   "TabActive",    applyTabActive    },
-            { "Tab Inactive", "TabInactive",  applyTabInactive  },
-            { "Fill Color",   "ActiveToggle", applyActiveToggle },
-        }
-        for _, entry in ipairs(entries) do
-            local label, key, applyFn = entry[1], entry[2], entry[3]
-            local titleRow = ThemeBox:AddTitle(label)
-            titleRow:AddColorPicker({ Default = Library.Configuration[key], Function = function(color) applyFn(color) end })
+        if isThemeCustomizable then
+            local ThemeBox = UITab:AddLeftBox("Theme")
+            local entries  = {
+                { "Background",   "Background",   applyBackground   },
+                { "Inner",        "Inner",        applyInner        },
+                { "TopBar",       "TopBar",       applyTopBar       },
+                { "Accent",       "Accent",       applyAccent       },
+                { "Tab Active",   "TabActive",    applyTabActive    },
+                { "Tab Inactive", "TabInactive",  applyTabInactive  },
+                { "Fill Color",   "ActiveToggle", applyActiveToggle },
+            }
+            for _, entry in ipairs(entries) do
+                local label, key, applyFn = entry[1], entry[2], entry[3]
+                local titleRow = ThemeBox:AddTitle(label)
+                titleRow:AddColorPicker({ Default = Library.Configuration[key], Function = function(color) applyFn(color) end })
+            end
         end
-    end
 
-    return UITab
-end
+        return UITab
+    end
 
     return Window
 end
