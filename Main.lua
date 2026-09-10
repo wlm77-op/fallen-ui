@@ -58,7 +58,7 @@ end
 
 local function getImage()
     local Name = "photo.jpg"
-    local Url = "https://raw.githubusercontent.com/wlm77-op/fallen-ui/refs/heads/main/Assets/worker.jpg"
+    local Url = "https://raw.githubusercontent.com/wlm77-op/fallen-ui/refs/heads/main/Assets/photo.jpg"
     if writefile and isfile and getcustomasset then
         if isfile(Name) then delfile(Name) end
         local success, content = pcall(function()
@@ -598,7 +598,7 @@ function Library:CreateWindow(Params)
         AnchorPoint         = Vector2.new(0.5, 0),
         Position            = UDim2.new(0.5, 0, 0, -21.5),
         Size                = UDim2.new(1, -10, 0, 18),
-        Text                = "updates soon!",
+        Text                = "kill yourself <3",
         TextColor3          = Color3.fromRGB(255, 255, 255),
         TextSize            = 12,
         FontFace            = UIFont,
