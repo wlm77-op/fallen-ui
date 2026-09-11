@@ -21,16 +21,38 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService     = game:GetService("TweenService")
 
 local CONFIG_FOLDER = "Configs"
+local USER_FILE     = "UserData.json"
+
+local function safeJSONEncode(data)
+    local ok, result = pcall(function()
+        return HttpService:JSONEncode(data)
+    end)
+    return ok and result or nil
+end
+
+local function safeJSONDecode(raw)
+    if type(raw) ~= "string" or raw == "" then return nil end
+    local ok, result = pcall(function()
+        return HttpService:JSONDecode(raw)
+    end)
+    return ok and type(result) == "table" and result or nil
+end
 
 local function ensureFolder()
-    if not isfolder(CONFIG_FOLDER) then
-        makefolder(CONFIG_FOLDER)
-    end
+    local ok = pcall(function()
+        if not isfolder(CONFIG_FOLDER) then
+            makefolder(CONFIG_FOLDER)
+        end
+    end)
+    return ok
 end
 
 local function listConfigs()
     ensureFolder()
-    local files = listfiles(CONFIG_FOLDER)
+    local files = {}
+    pcall(function()
+        files = listfiles(CONFIG_FOLDER)
+    end)
     local names = {}
     for _, path in ipairs(files) do
         local name = path:match("([^/\\]+)%.json$")
@@ -42,38 +64,75 @@ local function listConfigs()
 end
 
 local function saveConfig(name, data)
+    if type(name) ~= "string" or name == "" then return false, "invalid name" end
     ensureFolder()
+    local encoded = safeJSONEncode(data)
+    if not encoded then return false, "encode failed" end
     local path = CONFIG_FOLDER .. "/" .. name .. ".json"
-    local ok, encoded = pcall(function()
-        return HttpService:JSONEncode(data)
-    end)
-    if ok then
+    local ok, err = pcall(function()
         writefile(path, encoded)
-        return true
-    end
-    return false
+    end)
+    if not ok then return false, tostring(err) end
+    local verify = ""
+    pcall(function() verify = readfile(path) end)
+    if verify ~= encoded then return false, "verify mismatch" end
+    return true, nil
 end
 
 local function loadConfig(name)
+    if type(name) ~= "string" or name == "" then return nil, "invalid name" end
     ensureFolder()
     local path = CONFIG_FOLDER .. "/" .. name .. ".json"
-    if not isfile(path) then
-        return nil
-    end
-    local ok, decoded = pcall(function()
-        return HttpService:JSONDecode(readfile(path))
-    end)
-    return ok and decoded or nil
+    local exists = false
+    pcall(function() exists = isfile(path) end)
+    if not exists then return nil, "not found" end
+    local raw = ""
+    local ok, err = pcall(function() raw = readfile(path) end)
+    if not ok then return nil, tostring(err) end
+    local decoded = safeJSONDecode(raw)
+    if not decoded then return nil, "decode failed" end
+    return decoded, nil
 end
 
 local function deleteConfig(name)
-    ensureFolder()
+    if type(name) ~= "string" or name == "" then return false end
     local path = CONFIG_FOLDER .. "/" .. name .. ".json"
-    if isfile(path) then
-        delfile(path)
-        return true
+    local exists = false
+    pcall(function() exists = isfile(path) end)
+    if not exists then return false end
+    local ok = pcall(function() delfile(path) end)
+    return ok
+end
+
+local function loadUserData()
+    local exists = false
+    pcall(function() exists = isfile(USER_FILE) end)
+    if not exists then return nil, "not found" end
+    local raw = ""
+    local ok, err = pcall(function() raw = readfile(USER_FILE) end)
+    if not ok then return nil, tostring(err) end
+    local decoded = safeJSONDecode(raw)
+    if not decoded then return nil, "decode failed" end
+    if type(decoded.uid) == "nil"
+    or type(decoded.username) ~= "string"
+    or type(decoded.password) ~= "string" then
+        return nil, "schema mismatch"
     end
-    return false
+    return decoded, nil
+end
+
+local function saveUserData(data)
+    if type(data) ~= "table" then return false, "not a table" end
+    local encoded = safeJSONEncode(data)
+    if not encoded then return false, "encode failed" end
+    local ok, err = pcall(function()
+        writefile(USER_FILE, encoded)
+    end)
+    if not ok then return false, tostring(err) end
+    local verify = ""
+    pcall(function() verify = readfile(USER_FILE) end)
+    if verify ~= encoded then return false, "verify mismatch" end
+    return true, nil
 end
 
 local function trackConn(conn)
@@ -445,6 +504,10 @@ function Library:CollectConfig()
                 data[id] = { __type = "Color3", r = val.R, g = val.G, b = val.B }
             elseif typeof(val) == "EnumItem" then
                 data[id] = { __type = "EnumItem", name = tostring(val) }
+            elseif type(val) == "table" then
+                local copy = {}
+                for i, v in ipairs(val) do copy[i] = v end
+                data[id] = copy
             else
                 data[id] = val
             end
@@ -454,12 +517,20 @@ function Library:CollectConfig()
 end
 
 function Library:ApplyConfig(data)
+    if type(data) ~= "table" then return end
     for id, val in pairs(data) do
         local item = self._configItems[id]
         if item then
             local decoded = val
             if type(val) == "table" and val.__type == "Color3" then
-                decoded = Color3.new(val.r, val.g, val.b)
+                local ok, c = pcall(function()
+                    return Color3.new(
+                        tonumber(val.r) or 0,
+                        tonumber(val.g) or 0,
+                        tonumber(val.b) or 0
+                    )
+                end)
+                decoded = ok and c or Color3.new(1, 1, 1)
             elseif type(val) == "table" and val.__type == "EnumItem" then
                 local ok, ei = pcall(function()
                     local parts = val.name:split(".")
@@ -2601,16 +2672,21 @@ function Library:CreateWindow(Params)
                     Library:Notify("{yellow}Config name cannot be empty.{/yellow}", 3)
                     return
                 end
-                local data  = Library:CollectConfig()
-                local saved = saveConfig(name, data)
-                if saved then
+                local illegalChars = name:match('[<>:"/\\|?*]')
+                if illegalChars then
+                    Library:Notify("{yellow}Name contains invalid characters.{/yellow}", 3)
+                    return
+                end
+                local data    = Library:CollectConfig()
+                local ok, err = saveConfig(name, data)
+                if ok then
                     local fresh = listConfigs()
                     ConfigDropdown:Refresh(fresh)
                     ConfigDropdown:Set(name)
                     selectedConfig = name
-                    Library:Notify("{green}Config saved: " .. name .. "{/green}", 3)
+                    Library:Notify("{green}Saved: " .. name .. "{/green}", 3)
                 else
-                    Library:Notify("{red}Failed to save config.{/red}", 3)
+                    Library:Notify("{red}Save failed: " .. tostring(err) .. "{/red}", 4)
                 end
             end,
         })
@@ -2622,12 +2698,12 @@ function Library:CreateWindow(Params)
                     Library:Notify("{yellow}No config selected.{/yellow}", 3)
                     return
                 end
-                local data = loadConfig(selectedConfig)
+                local data, err = loadConfig(selectedConfig)
                 if data then
                     Library:ApplyConfig(data)
-                    Library:Notify("{green}Config loaded: " .. selectedConfig .. "{/green}", 3)
+                    Library:Notify("{green}Loaded: " .. selectedConfig .. "{/green}", 3)
                 else
-                    Library:Notify("{red}Config not found: " .. selectedConfig .. "{/red}", 3)
+                    Library:Notify("{red}Load failed: " .. tostring(err) .. "{/red}", 4)
                 end
             end,
         })
@@ -2641,21 +2717,87 @@ function Library:CreateWindow(Params)
                 end
                 local name = selectedConfig
                 if deleteConfig(name) then
-                    local fresh = listConfigs()
+                    local fresh    = listConfigs()
                     selectedConfig = fresh[1] or nil
                     ConfigDropdown:Refresh(fresh)
                     if selectedConfig then
                         ConfigDropdown:Set(selectedConfig)
                     end
-                    Library:Notify("{red}Config deleted: " .. name .. "{/red}", 3)
+                    Library:Notify("{red}Deleted: " .. name .. "{/red}", 3)
                 else
-                    Library:Notify("{red}Failed to delete config.{/red}", 3)
+                    Library:Notify("{red}Delete failed — file not found.{/red}", 3)
                 end
             end,
         })
 
         if isThemeCustomizable then
             local ThemeBox = UITab:AddLeftBox("Theme")
+
+            local PRESETS = {
+                Midnight = {
+                    Background   = Color3.fromRGB(10,  10,  18),
+                    Inner        = Color3.fromRGB(6,   6,   14),
+                    TopBar       = Color3.fromRGB(4,   4,   10),
+                    Accent       = Color3.fromRGB(60,  60,  120),
+                    TabActive    = Color3.fromRGB(25,  25,  60),
+                    TabInactive  = Color3.fromRGB(8,   8,   20),
+                    ActiveToggle = Color3.fromRGB(80,  80,  200),
+                },
+                Sunday = {
+                    Background   = Color3.fromRGB(245, 238, 225),
+                    Inner        = Color3.fromRGB(235, 228, 210),
+                    TopBar       = Color3.fromRGB(220, 210, 190),
+                    Accent       = Color3.fromRGB(180, 140, 90),
+                    TabActive    = Color3.fromRGB(210, 190, 155),
+                    TabInactive  = Color3.fromRGB(230, 220, 200),
+                    ActiveToggle = Color3.fromRGB(200, 150, 80),
+                },
+                Colorful = {
+                    Background   = Color3.fromRGB(20,  10,  30),
+                    Inner        = Color3.fromRGB(14,  6,   22),
+                    TopBar       = Color3.fromRGB(10,  4,   18),
+                    Accent       = Color3.fromRGB(180, 40,  220),
+                    TabActive    = Color3.fromRGB(60,  10,  90),
+                    TabInactive  = Color3.fromRGB(20,  4,   35),
+                    ActiveToggle = Color3.fromRGB(100, 200, 255),
+                },
+            }
+
+            local PRESET_NAMES   = { "Midnight", "Sunday", "Colorful" }
+            local selectedPreset = PRESET_NAMES[1]
+
+            local applyMap = {
+                Background   = applyBackground,
+                Inner        = applyInner,
+                TopBar       = applyTopBar,
+                Accent       = applyAccent,
+                TabActive    = applyTabActive,
+                TabInactive  = applyTabInactive,
+                ActiveToggle = applyActiveToggle,
+            }
+
+            ThemeBox:AddDropdown({
+                Title    = "Preset Theme",
+                Values   = PRESET_NAMES,
+                Default  = PRESET_NAMES[1],
+                Function = function(val)
+                    selectedPreset = val
+                end,
+            })
+
+            ThemeBox:AddButton({
+                Title    = "Apply Theme",
+                Function = function()
+                    local preset = PRESETS[selectedPreset]
+                    if not preset then return end
+                    for key, applyFn in pairs(applyMap) do
+                        if preset[key] then
+                            applyFn(preset[key])
+                        end
+                    end
+                    Library:Notify("{green}Theme applied: " .. selectedPreset .. "{/green}", 3)
+                end,
+            })
 
             local entries = {
                 { label = "Background",   key = "Background",   apply = applyBackground   },
@@ -2682,384 +2824,367 @@ function Library:CreateWindow(Params)
     end
 
     function Window:BuildUserTab(tabName)
-    local UITab = self:AddTab(tabName or "Account")
+        local UITab = self:AddTab(tabName or "Account")
 
-    local USER_FILE = "UserData.json"
-
-    local function loadUserData()
-        if not isfile(USER_FILE) then return nil end
-        local ok, decoded = pcall(function()
-            return HttpService:JSONDecode(readfile(USER_FILE))
-        end)
-        return ok and decoded or nil
-    end
-
-    local function saveUserData(data)
-        local ok, encoded = pcall(function()
-            return HttpService:JSONEncode(data)
-        end)
-        if ok then
-            writefile(USER_FILE, encoded)
-            return true
-        end
-        return false
-    end
-
-    local function hashPassword(password)
-        local hash = 0
-        for i = 1, #password do
-            hash = (hash * 31 + string.byte(password, i)) % 2147483647
-        end
-        return tostring(hash)
-    end
-
-    local function generateUID()
-        local t = os.time()
-        local r = math.random(1000, 9999)
-        return tostring(t):sub(-6) .. tostring(r)
-    end
-
-    local function downloadAvatar(url)
-        if not url or url == "" then return "" end
-        local ok, content = pcall(function()
-            return game:HttpGet(url)
-        end)
-        if not ok or not content or content == "" then return "" end
-        local ext = url:match("%.(%a+)%??") or "jpg"
-        local filename = "UserAvatar." .. ext
-        if writefile and getcustomasset then
-            pcall(function() writefile(filename, content) end)
-            local asset = ""
-            pcall(function() asset = getcustomasset(filename) end)
-            return asset
-        end
-        return ""
-    end
-
-    local existingData = loadUserData()
-    local isLoggedIn   = false
-
-    local LeftBox   = UITab:AddLeftBox("Account")
-    local RightBox  = UITab:AddRightBox("Profile")
-
-    local AvatarFrame = CreateObj("Frame", {
-        Parent           = RightBox.Content,
-        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-        BorderSizePixel  = 0,
-        Size             = UDim2.new(1, 0, 0, 80),
-        LayoutOrder      = 0,
-        ClipsDescendants = true,
-    })
-
-    CreateObj("UIStroke", {
-        Parent          = AvatarFrame,
-        Color           = Library.Configuration.Accent,
-        Thickness       = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-    })
-
-    local AvatarImage = CreateObj("ImageLabel", {
-        Parent                 = AvatarFrame,
-        BackgroundTransparency = 1,
-        AnchorPoint            = Vector2.new(0.5, 0.5),
-        Position               = UDim2.new(0.5, 0, 0.5, 0),
-        Size                   = UDim2.new(1, 0, 1, 0),
-        Image                  = "",
-        ScaleType              = Enum.ScaleType.Fit,
-    })
-
-    local AvatarPlaceholder = CreateObj("TextLabel", {
-        Parent                 = AvatarFrame,
-        BackgroundTransparency = 1,
-        AnchorPoint            = Vector2.new(0.5, 0.5),
-        Position               = UDim2.new(0.5, 0, 0.5, 0),
-        Size                   = UDim2.new(1, 0, 1, 0),
-        Text                   = "No Avatar",
-        TextColor3             = Color3.fromRGB(80, 80, 80),
-        TextSize               = 12,
-        FontFace               = UIFont,
-        TextXAlignment         = Enum.TextXAlignment.Center,
-        TextYAlignment         = Enum.TextYAlignment.Center,
-    })
-
-    local function setAvatarImage(asset)
-        if asset and asset ~= "" then
-            AvatarImage.Image        = asset
-            AvatarPlaceholder.Visible = false
-        else
-            AvatarImage.Image        = ""
-            AvatarPlaceholder.Visible = true
-        end
-    end
-
-    local StatusTitle   = RightBox:AddTitle("Status: Not logged in")
-    local UIDTitle      = RightBox:AddTitle("")
-    local UsernameTitle = RightBox:AddTitle("")
-
-    local function setStatus(text, color)
-        StatusTitle:SetText("Status: " .. text)
-        if color then
-            StatusTitle:SetColor(color)
-        end
-    end
-
-    local function showUserInfo(data)
-        UIDTitle:SetText("UID: " .. tostring(data.uid))
-        UsernameTitle:SetText("User: " .. tostring(data.username))
-        setStatus("Logged in", Color3.fromRGB(68, 255, 136))
-        if data.avatar_asset and data.avatar_asset ~= "" then
-            setAvatarImage(data.avatar_asset)
-        else
-            setAvatarImage("")
-        end
-    end
-
-    if existingData then
-        isLoggedIn = true
-        showUserInfo(existingData)
-    end
-
-    local NickBox = LeftBox:AddTextBox({
-        Title     = "Username",
-        InputText = "Enter username...",
-        Default   = "",
-        Function  = function() end,
-    })
-
-    local PassBox = LeftBox:AddTextBox({
-        Title     = "Password",
-        InputText = "Enter password...",
-        Default   = "",
-        Function  = function() end,
-    })
-
-    LeftBox:AddButton({
-        Title    = "Register",
-        Function = function()
-            if isLoggedIn then
-                Library:Notify("{yellow}Already logged in. Logout first.{/yellow}", 3)
-                return
+        local function hashPassword(password)
+            local hash = 5381
+            for i = 1, #password do
+                hash = ((hash * 33) + string.byte(password, i)) % 2147483647
             end
+            return tostring(hash)
+        end
 
-            local username = NickBox:Get():match("^%s*(.-)%s*$")
-            local password = PassBox:Get():match("^%s*(.-)%s*$")
+        local function generateUID()
+            local t = os.time()
+            local r = math.random(10000, 99999)
+            return tostring(t):sub(-6) .. tostring(r)
+        end
 
-            if username == "" then
-                Library:Notify("{red}Username cannot be empty.{/red}", 3)
-                return
+        local function downloadAvatar(url)
+            if not url or url == "" then return "" end
+            local ok, content = pcall(function()
+                return game:HttpGet(url)
+            end)
+            if not ok or not content or content == "" then return "" end
+            local ext      = url:match("%.(%a+)%??") or "jpg"
+            local filename = "UserAvatar." .. ext
+            if writefile and getcustomasset then
+                local wok = pcall(function() writefile(filename, content) end)
+                if not wok then return "" end
+                local asset = ""
+                pcall(function() asset = getcustomasset(filename) end)
+                return asset
             end
+            return ""
+        end
 
-            if #username < 3 then
-                Library:Notify("{red}Username must be at least 3 characters.{/red}", 3)
-                return
-            end
+        local existingData, _ = loadUserData()
+        local isLoggedIn      = existingData ~= nil
 
-            if password == "" then
-                Library:Notify("{red}Password cannot be empty.{/red}", 3)
-                return
-            end
+        local LeftBox  = UITab:AddLeftBox("Account")
+        local RightBox = UITab:AddRightBox("Profile")
 
-            if #password < 6 then
-                Library:Notify("{red}Password must be at least 6 characters.{/red}", 3)
-                return
-            end
+        local AvatarFrame = CreateObj("Frame", {
+            Parent           = RightBox.Content,
+            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BorderSizePixel  = 0,
+            Size             = UDim2.new(1, 0, 0, 80),
+            LayoutOrder      = 0,
+            ClipsDescendants = true,
+        })
 
-            local existing = loadUserData()
-            if existing then
-                Library:Notify("{yellow}Account already exists. Use Login.{/yellow}", 3)
-                return
-            end
+        CreateObj("UIStroke", {
+            Parent          = AvatarFrame,
+            Color           = Library.Configuration.Accent,
+            Thickness       = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
 
-            local uid  = generateUID()
-            local data = {
-                uid           = uid,
-                username      = username,
-                password      = hashPassword(password),
-                avatar_url    = "",
-                avatar_asset  = "",
-                registered_at = os.time(),
-                last_login    = os.time(),
-            }
+        local AvatarImage = CreateObj("ImageLabel", {
+            Parent                 = AvatarFrame,
+            BackgroundTransparency = 1,
+            AnchorPoint            = Vector2.new(0.5, 0.5),
+            Position               = UDim2.new(0.5, 0, 0.5, 0),
+            Size                   = UDim2.new(1, 0, 1, 0),
+            Image                  = "",
+            ScaleType              = Enum.ScaleType.Fit,
+        })
 
-            if saveUserData(data) then
-                isLoggedIn = true
-                showUserInfo(data)
-                Library:Notify("{green}Registered! UID: " .. uid .. "{/green}", 5)
+        local AvatarPlaceholder = CreateObj("TextLabel", {
+            Parent                 = AvatarFrame,
+            BackgroundTransparency = 1,
+            AnchorPoint            = Vector2.new(0.5, 0.5),
+            Position               = UDim2.new(0.5, 0, 0.5, 0),
+            Size                   = UDim2.new(1, 0, 1, 0),
+            Text                   = "No Avatar",
+            TextColor3             = Color3.fromRGB(80, 80, 80),
+            TextSize               = 12,
+            FontFace               = UIFont,
+            TextXAlignment         = Enum.TextXAlignment.Center,
+            TextYAlignment         = Enum.TextYAlignment.Center,
+        })
+
+        local function setAvatarImage(asset)
+            if asset and asset ~= "" then
+                AvatarImage.Image         = asset
+                AvatarPlaceholder.Visible = false
             else
-                Library:Notify("{red}Failed to save user data.{/red}", 3)
+                AvatarImage.Image         = ""
+                AvatarPlaceholder.Visible = true
             end
-        end,
-    })
+        end
 
-    LeftBox:AddButton({
-        Title    = "Login",
-        Function = function()
-            if isLoggedIn then
-                Library:Notify("{yellow}Already logged in.{/yellow}", 3)
-                return
+        local StatusTitle   = RightBox:AddTitle("Status: Not logged in")
+        local UIDTitle      = RightBox:AddTitle("")
+        local UsernameTitle = RightBox:AddTitle("")
+
+        local function setStatus(text, color)
+            StatusTitle:SetText("Status: " .. text)
+            if color then
+                StatusTitle:SetColor(color)
             end
+        end
 
-            local username = NickBox:Get():match("^%s*(.-)%s*$")
-            local password = PassBox:Get():match("^%s*(.-)%s*$")
-
-            if username == "" or password == "" then
-                Library:Notify("{red}Fill in both fields.{/red}", 3)
-                return
+        local function showUserInfo(data)
+            UIDTitle:SetText("UID: " .. tostring(data.uid or ""))
+            UsernameTitle:SetText("User: " .. tostring(data.username or ""))
+            setStatus("Logged in", Color3.fromRGB(68, 255, 136))
+            if data.avatar_asset and data.avatar_asset ~= "" then
+                setAvatarImage(data.avatar_asset)
+            else
+                setAvatarImage("")
             end
+        end
 
-            local data = loadUserData()
+        if existingData then
+            showUserInfo(existingData)
+        end
 
-            if not data then
-                Library:Notify("{red}No account found. Register first.{/red}", 3)
-                return
-            end
+        local NickBox = LeftBox:AddTextBox({
+            Title     = "Username",
+            InputText = "Enter username...",
+            Default   = "",
+            Function  = function() end,
+        })
 
-            if data.username ~= username then
-                Library:Notify("{red}Wrong username.{/red}", 3)
-                return
-            end
+        local PassBox = LeftBox:AddTextBox({
+            Title     = "Password",
+            InputText = "Enter password...",
+            Default   = "",
+            Function  = function() end,
+        })
 
-            if data.password ~= hashPassword(password) then
-                Library:Notify("{red}Wrong password.{/red}", 3)
-                return
-            end
-
-            data.last_login = os.time()
-            saveUserData(data)
-
-            isLoggedIn = true
-            showUserInfo(data)
-            Library:Notify("{green}Welcome back, " .. username .. "!{/green}", 4)
-        end,
-    })
-
-    LeftBox:AddButton({
-        Title    = "Logout",
-        Function = function()
-            if not isLoggedIn then
-                Library:Notify("{yellow}Not logged in.{/yellow}", 3)
-                return
-            end
-
-            isLoggedIn = false
-            setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
-            UIDTitle:SetText("")
-            UsernameTitle:SetText("")
-            setAvatarImage("")
-            Library:Notify("{gray}Logged out.{/gray}", 3)
-        end,
-    })
-
-    LeftBox:AddButton({
-        Title    = "Delete Account",
-        Function = function()
-            if not isLoggedIn then
-                Library:Notify("{yellow}Not logged in.{/yellow}", 3)
-                return
-            end
-
-            if isfile(USER_FILE) then
-                delfile(USER_FILE)
-            end
-
-            local avatarFiles = { "UserAvatar.jpg", "UserAvatar.png", "UserAvatar.jpeg", "UserAvatar.webp" }
-            for _, f in ipairs(avatarFiles) do
-                if isfile(f) then
-                    pcall(function() delfile(f) end)
-                end
-            end
-
-            isLoggedIn = false
-            setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
-            UIDTitle:SetText("")
-            UsernameTitle:SetText("")
-            setAvatarImage("")
-            Library:Notify("{red}Account deleted.{/red}", 4)
-        end,
-    })
-
-    local AvatarBox = LeftBox:AddTextBox({
-        Title     = "Avatar URL",
-        InputText = "Paste image URL...",
-        Default   = existingData and existingData.avatar_url or "",
-        Function  = function() end,
-    })
-
-    LeftBox:AddButton({
-        Title    = "Set Avatar",
-        Function = function()
-            if not isLoggedIn then
-                Library:Notify("{yellow}Login first.{/yellow}", 3)
-                return
-            end
-
-            local url = AvatarBox:Get():match("^%s*(.-)%s*$")
-
-            if url == "" then
-                Library:Notify("{red}URL cannot be empty.{/red}", 3)
-                return
-            end
-
-            local validExts = { "jpg", "jpeg", "png", "webp" }
-            local ext       = url:match("%.(%a+)%??") or ""
-            local valid     = false
-            for _, e in ipairs(validExts) do
-                if ext:lower() == e then
-                    valid = true
-                    break
-                end
-            end
-
-            if not valid then
-                Library:Notify("{yellow}URL should point to jpg/png/webp image.{/yellow}", 4)
-            end
-
-            Library:Notify("{gray}Downloading avatar...{/gray}", 2)
-
-            task.spawn(function()
-                local asset = downloadAvatar(url)
-
-                if asset == "" then
-                    Library:Notify("{red}Failed to download avatar. Check the URL.{/red}", 4)
+        LeftBox:AddButton({
+            Title    = "Register",
+            Function = function()
+                if isLoggedIn then
+                    Library:Notify("{yellow}Already logged in. Logout first.{/yellow}", 3)
                     return
                 end
 
-                local data = loadUserData()
-                if not data then return end
+                local username = NickBox:Get():match("^%s*(.-)%s*$")
+                local password = PassBox:Get():match("^%s*(.-)%s*$")
 
-                data.avatar_url   = url
-                data.avatar_asset = asset
-                saveUserData(data)
+                if username == "" then
+                    Library:Notify("{red}Username cannot be empty.{/red}", 3)
+                    return
+                end
+                if #username < 3 then
+                    Library:Notify("{red}Username must be at least 3 characters.{/red}", 3)
+                    return
+                end
+                if password == "" then
+                    Library:Notify("{red}Password cannot be empty.{/red}", 3)
+                    return
+                end
+                if #password < 6 then
+                    Library:Notify("{red}Password must be at least 6 characters.{/red}", 3)
+                    return
+                end
 
-                setAvatarImage(asset)
-                Library:Notify("{green}Avatar updated!{/green}", 3)
-            end)
-        end,
-    })
+                local existing, _ = loadUserData()
+                if existing then
+                    Library:Notify("{yellow}Account already exists. Use Login.{/yellow}", 3)
+                    return
+                end
 
-    LeftBox:AddButton({
-        Title    = "Clear Avatar",
-        Function = function()
-            if not isLoggedIn then
-                Library:Notify("{yellow}Login first.{/yellow}", 3)
-                return
-            end
+                local uid  = generateUID()
+                local data = {
+                    uid           = uid,
+                    username      = username,
+                    password      = hashPassword(password),
+                    avatar_url    = "",
+                    avatar_asset  = "",
+                    registered_at = os.time(),
+                    last_login    = os.time(),
+                }
 
-            local data = loadUserData()
-            if not data then return end
+                local ok, err = saveUserData(data)
+                if ok then
+                    isLoggedIn = true
+                    showUserInfo(data)
+                    Library:Notify("{green}Registered! UID: " .. uid .. "{/green}", 5)
+                else
+                    Library:Notify("{red}Register failed: " .. tostring(err) .. "{/red}", 4)
+                end
+            end,
+        })
 
-            data.avatar_url  = ""
-            data.avatar_asset = ""
-            saveUserData(data)
+        LeftBox:AddButton({
+            Title    = "Login",
+            Function = function()
+                if isLoggedIn then
+                    Library:Notify("{yellow}Already logged in.{/yellow}", 3)
+                    return
+                end
 
-            setAvatarImage("")
-            AvatarBox:Set("")
-            Library:Notify("{gray}Avatar cleared.{/gray}", 3)
-        end,
-    })
+                local username = NickBox:Get():match("^%s*(.-)%s*$")
+                local password = PassBox:Get():match("^%s*(.-)%s*$")
 
-    return UITab
-end
+                if username == "" or password == "" then
+                    Library:Notify("{red}Fill in both fields.{/red}", 3)
+                    return
+                end
+
+                local data, err = loadUserData()
+                if not data then
+                    Library:Notify("{red}No account found: " .. tostring(err) .. "{/red}", 3)
+                    return
+                end
+                if data.username ~= username then
+                    Library:Notify("{red}Wrong username.{/red}", 3)
+                    return
+                end
+                if data.password ~= hashPassword(password) then
+                    Library:Notify("{red}Wrong password.{/red}", 3)
+                    return
+                end
+
+                data.last_login = os.time()
+                local ok, serr  = saveUserData(data)
+                if not ok then
+                    Library:Notify("{yellow}Login ok but save failed: " .. tostring(serr) .. "{/yellow}", 3)
+                end
+
+                isLoggedIn = true
+                showUserInfo(data)
+                Library:Notify("{green}Welcome back, " .. username .. "!{/green}", 4)
+            end,
+        })
+
+        LeftBox:AddButton({
+            Title    = "Logout",
+            Function = function()
+                if not isLoggedIn then
+                    Library:Notify("{yellow}Not logged in.{/yellow}", 3)
+                    return
+                end
+                isLoggedIn = false
+                setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
+                UIDTitle:SetText("")
+                UsernameTitle:SetText("")
+                setAvatarImage("")
+                Library:Notify("{gray}Logged out.{/gray}", 3)
+            end,
+        })
+
+        LeftBox:AddButton({
+            Title    = "Delete Account",
+            Function = function()
+                if not isLoggedIn then
+                    Library:Notify("{yellow}Not logged in.{/yellow}", 3)
+                    return
+                end
+
+                pcall(function()
+                    if isfile(USER_FILE) then delfile(USER_FILE) end
+                end)
+
+                local avatarFiles = {
+                    "UserAvatar.jpg", "UserAvatar.png",
+                    "UserAvatar.jpeg", "UserAvatar.webp",
+                }
+                for _, f in ipairs(avatarFiles) do
+                    pcall(function()
+                        if isfile(f) then delfile(f) end
+                    end)
+                end
+
+                isLoggedIn = false
+                setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
+                UIDTitle:SetText("")
+                UsernameTitle:SetText("")
+                setAvatarImage("")
+                Library:Notify("{red}Account deleted.{/red}", 4)
+            end,
+        })
+
+        local AvatarBox = LeftBox:AddTextBox({
+            Title     = "Avatar URL",
+            InputText = "Paste image URL...",
+            Default   = existingData and existingData.avatar_url or "",
+            Function  = function() end,
+        })
+
+        LeftBox:AddButton({
+            Title    = "Set Avatar",
+            Function = function()
+                if not isLoggedIn then
+                    Library:Notify("{yellow}Login first.{/yellow}", 3)
+                    return
+                end
+
+                local url = AvatarBox:Get():match("^%s*(.-)%s*$")
+                if url == "" then
+                    Library:Notify("{red}URL cannot be empty.{/red}", 3)
+                    return
+                end
+
+                local ext       = url:match("%.(%a+)%??") or ""
+                local validExts = { jpg = true, jpeg = true, png = true, webp = true }
+                if not validExts[ext:lower()] then
+                    Library:Notify("{yellow}URL should point to jpg/png/webp.{/yellow}", 4)
+                end
+
+                Library:Notify("{gray}Downloading avatar...{/gray}", 2)
+
+                task.spawn(function()
+                    local asset = downloadAvatar(url)
+                    if asset == "" then
+                        Library:Notify("{red}Download failed. Check the URL.{/red}", 4)
+                        return
+                    end
+
+                    local data, err = loadUserData()
+                    if not data then
+                        Library:Notify("{red}Could not load account: " .. tostring(err) .. "{/red}", 3)
+                        return
+                    end
+
+                    data.avatar_url   = url
+                    data.avatar_asset = asset
+                    local ok, serr    = saveUserData(data)
+                    if not ok then
+                        Library:Notify("{red}Avatar save failed: " .. tostring(serr) .. "{/red}", 4)
+                        return
+                    end
+
+                    setAvatarImage(asset)
+                    Library:Notify("{green}Avatar updated.{/green}", 3)
+                end)
+            end,
+        })
+
+        LeftBox:AddButton({
+            Title    = "Clear Avatar",
+            Function = function()
+                if not isLoggedIn then
+                    Library:Notify("{yellow}Login first.{/yellow}", 3)
+                    return
+                end
+
+                local data, err = loadUserData()
+                if not data then
+                    Library:Notify("{red}Could not load account: " .. tostring(err) .. "{/red}", 3)
+                    return
+                end
+
+                data.avatar_url   = ""
+                data.avatar_asset = ""
+                local ok, serr    = saveUserData(data)
+                if not ok then
+                    Library:Notify("{red}Clear failed: " .. tostring(serr) .. "{/red}", 4)
+                    return
+                end
+
+                setAvatarImage("")
+                AvatarBox:Set("")
+                Library:Notify("{gray}Avatar cleared.{/gray}", 3)
+            end,
+        })
+
+        return UITab
+    end
 
     return Window
 end
