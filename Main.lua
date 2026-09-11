@@ -2681,6 +2681,386 @@ function Library:CreateWindow(Params)
         return UITab
     end
 
+    function Window:BuildUserTab(tabName)
+    local UITab = self:AddTab(tabName or "Account")
+
+    local USER_FILE = "UserData.json"
+
+    local function loadUserData()
+        if not isfile(USER_FILE) then return nil end
+        local ok, decoded = pcall(function()
+            return HttpService:JSONDecode(readfile(USER_FILE))
+        end)
+        return ok and decoded or nil
+    end
+
+    local function saveUserData(data)
+        local ok, encoded = pcall(function()
+            return HttpService:JSONEncode(data)
+        end)
+        if ok then
+            writefile(USER_FILE, encoded)
+            return true
+        end
+        return false
+    end
+
+    local function hashPassword(password)
+        local hash = 0
+        for i = 1, #password do
+            hash = (hash * 31 + string.byte(password, i)) % 2147483647
+        end
+        return tostring(hash)
+    end
+
+    local function generateUID()
+        local t = os.time()
+        local r = math.random(1000, 9999)
+        return tostring(t):sub(-6) .. tostring(r)
+    end
+
+    local function downloadAvatar(url)
+        if not url or url == "" then return "" end
+        local ok, content = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if not ok or not content or content == "" then return "" end
+        local ext = url:match("%.(%a+)%??") or "jpg"
+        local filename = "UserAvatar." .. ext
+        if writefile and getcustomasset then
+            pcall(function() writefile(filename, content) end)
+            local asset = ""
+            pcall(function() asset = getcustomasset(filename) end)
+            return asset
+        end
+        return ""
+    end
+
+    local existingData = loadUserData()
+    local isLoggedIn   = false
+
+    local LeftBox   = UITab:AddLeftBox("Account")
+    local RightBox  = UITab:AddRightBox("Profile")
+
+    local AvatarFrame = CreateObj("Frame", {
+        Parent           = RightBox.Content,
+        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+        BorderSizePixel  = 0,
+        Size             = UDim2.new(1, 0, 0, 80),
+        LayoutOrder      = 0,
+        ClipsDescendants = true,
+    })
+
+    CreateObj("UIStroke", {
+        Parent          = AvatarFrame,
+        Color           = Library.Configuration.Accent,
+        Thickness       = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    })
+
+    local AvatarImage = CreateObj("ImageLabel", {
+        Parent                 = AvatarFrame,
+        BackgroundTransparency = 1,
+        AnchorPoint            = Vector2.new(0.5, 0.5),
+        Position               = UDim2.new(0.5, 0, 0.5, 0),
+        Size                   = UDim2.new(0, 64, 0, 64),
+        Image                  = "",
+        ScaleType              = Enum.ScaleType.Fit,
+    })
+
+    local AvatarPlaceholder = CreateObj("TextLabel", {
+        Parent                 = AvatarFrame,
+        BackgroundTransparency = 1,
+        AnchorPoint            = Vector2.new(0.5, 0.5),
+        Position               = UDim2.new(0.5, 0, 0.5, 0),
+        Size                   = UDim2.new(1, 0, 1, 0),
+        Text                   = "No Avatar",
+        TextColor3             = Color3.fromRGB(80, 80, 80),
+        TextSize               = 12,
+        FontFace               = UIFont,
+        TextXAlignment         = Enum.TextXAlignment.Center,
+        TextYAlignment         = Enum.TextYAlignment.Center,
+    })
+
+    local function setAvatarImage(asset)
+        if asset and asset ~= "" then
+            AvatarImage.Image        = asset
+            AvatarPlaceholder.Visible = false
+        else
+            AvatarImage.Image        = ""
+            AvatarPlaceholder.Visible = true
+        end
+    end
+
+    local StatusTitle   = RightBox:AddTitle("Status: Not logged in")
+    local UIDTitle      = RightBox:AddTitle("")
+    local UsernameTitle = RightBox:AddTitle("")
+
+    local function setStatus(text, color)
+        StatusTitle:SetText("Status: " .. text)
+        if color then
+            StatusTitle:SetColor(color)
+        end
+    end
+
+    local function showUserInfo(data)
+        UIDTitle:SetText("UID: " .. tostring(data.uid))
+        UsernameTitle:SetText("User: " .. tostring(data.username))
+        setStatus("Logged in", Color3.fromRGB(68, 255, 136))
+        if data.avatar_asset and data.avatar_asset ~= "" then
+            setAvatarImage(data.avatar_asset)
+        else
+            setAvatarImage("")
+        end
+    end
+
+    if existingData then
+        isLoggedIn = true
+        showUserInfo(existingData)
+    end
+
+    local NickBox = LeftBox:AddTextBox({
+        Title     = "Username",
+        InputText = "Enter username...",
+        Default   = "",
+        Function  = function() end,
+    })
+
+    local PassBox = LeftBox:AddTextBox({
+        Title     = "Password",
+        InputText = "Enter password...",
+        Default   = "",
+        Function  = function() end,
+    })
+
+    LeftBox:AddButton({
+        Title    = "Register",
+        Function = function()
+            if isLoggedIn then
+                Library:Notify("{yellow}Already logged in. Logout first.{/yellow}", 3)
+                return
+            end
+
+            local username = NickBox:Get():match("^%s*(.-)%s*$")
+            local password = PassBox:Get():match("^%s*(.-)%s*$")
+
+            if username == "" then
+                Library:Notify("{red}Username cannot be empty.{/red}", 3)
+                return
+            end
+
+            if #username < 3 then
+                Library:Notify("{red}Username must be at least 3 characters.{/red}", 3)
+                return
+            end
+
+            if password == "" then
+                Library:Notify("{red}Password cannot be empty.{/red}", 3)
+                return
+            end
+
+            if #password < 6 then
+                Library:Notify("{red}Password must be at least 6 characters.{/red}", 3)
+                return
+            end
+
+            local existing = loadUserData()
+            if existing then
+                Library:Notify("{yellow}Account already exists. Use Login.{/yellow}", 3)
+                return
+            end
+
+            local uid  = generateUID()
+            local data = {
+                uid           = uid,
+                username      = username,
+                password      = hashPassword(password),
+                avatar_url    = "",
+                avatar_asset  = "",
+                registered_at = os.time(),
+                last_login    = os.time(),
+            }
+
+            if saveUserData(data) then
+                isLoggedIn = true
+                showUserInfo(data)
+                Library:Notify("{green}Registered! UID: " .. uid .. "{/green}", 5)
+            else
+                Library:Notify("{red}Failed to save user data.{/red}", 3)
+            end
+        end,
+    })
+
+    LeftBox:AddButton({
+        Title    = "Login",
+        Function = function()
+            if isLoggedIn then
+                Library:Notify("{yellow}Already logged in.{/yellow}", 3)
+                return
+            end
+
+            local username = NickBox:Get():match("^%s*(.-)%s*$")
+            local password = PassBox:Get():match("^%s*(.-)%s*$")
+
+            if username == "" or password == "" then
+                Library:Notify("{red}Fill in both fields.{/red}", 3)
+                return
+            end
+
+            local data = loadUserData()
+
+            if not data then
+                Library:Notify("{red}No account found. Register first.{/red}", 3)
+                return
+            end
+
+            if data.username ~= username then
+                Library:Notify("{red}Wrong username.{/red}", 3)
+                return
+            end
+
+            if data.password ~= hashPassword(password) then
+                Library:Notify("{red}Wrong password.{/red}", 3)
+                return
+            end
+
+            data.last_login = os.time()
+            saveUserData(data)
+
+            isLoggedIn = true
+            showUserInfo(data)
+            Library:Notify("{green}Welcome back, " .. username .. "!{/green}", 4)
+        end,
+    })
+
+    LeftBox:AddButton({
+        Title    = "Logout",
+        Function = function()
+            if not isLoggedIn then
+                Library:Notify("{yellow}Not logged in.{/yellow}", 3)
+                return
+            end
+
+            isLoggedIn = false
+            setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
+            UIDTitle:SetText("")
+            UsernameTitle:SetText("")
+            setAvatarImage("")
+            Library:Notify("{gray}Logged out.{/gray}", 3)
+        end,
+    })
+
+    LeftBox:AddButton({
+        Title    = "Delete Account",
+        Function = function()
+            if not isLoggedIn then
+                Library:Notify("{yellow}Not logged in.{/yellow}", 3)
+                return
+            end
+
+            if isfile(USER_FILE) then
+                delfile(USER_FILE)
+            end
+
+            local avatarFiles = { "UserAvatar.jpg", "UserAvatar.png", "UserAvatar.jpeg", "UserAvatar.webp" }
+            for _, f in ipairs(avatarFiles) do
+                if isfile(f) then
+                    pcall(function() delfile(f) end)
+                end
+            end
+
+            isLoggedIn = false
+            setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
+            UIDTitle:SetText("")
+            UsernameTitle:SetText("")
+            setAvatarImage("")
+            Library:Notify("{red}Account deleted.{/red}", 4)
+        end,
+    })
+
+    local AvatarBox = LeftBox:AddTextBox({
+        Title     = "Avatar URL",
+        InputText = "Paste image URL...",
+        Default   = existingData and existingData.avatar_url or "",
+        Function  = function() end,
+    })
+
+    LeftBox:AddButton({
+        Title    = "Set Avatar",
+        Function = function()
+            if not isLoggedIn then
+                Library:Notify("{yellow}Login first.{/yellow}", 3)
+                return
+            end
+
+            local url = AvatarBox:Get():match("^%s*(.-)%s*$")
+
+            if url == "" then
+                Library:Notify("{red}URL cannot be empty.{/red}", 3)
+                return
+            end
+
+            local validExts = { "jpg", "jpeg", "png", "webp" }
+            local ext       = url:match("%.(%a+)%??") or ""
+            local valid     = false
+            for _, e in ipairs(validExts) do
+                if ext:lower() == e then
+                    valid = true
+                    break
+                end
+            end
+
+            if not valid then
+                Library:Notify("{yellow}URL should point to jpg/png/webp image.{/yellow}", 4)
+            end
+
+            Library:Notify("{gray}Downloading avatar...{/gray}", 2)
+
+            task.spawn(function()
+                local asset = downloadAvatar(url)
+
+                if asset == "" then
+                    Library:Notify("{red}Failed to download avatar. Check the URL.{/red}", 4)
+                    return
+                end
+
+                local data = loadUserData()
+                if not data then return end
+
+                data.avatar_url   = url
+                data.avatar_asset = asset
+                saveUserData(data)
+
+                setAvatarImage(asset)
+                Library:Notify("{green}Avatar updated!{/green}", 3)
+            end)
+        end,
+    })
+
+    LeftBox:AddButton({
+        Title    = "Clear Avatar",
+        Function = function()
+            if not isLoggedIn then
+                Library:Notify("{yellow}Login first.{/yellow}", 3)
+                return
+            end
+
+            local data = loadUserData()
+            if not data then return end
+
+            data.avatar_url  = ""
+            data.avatar_asset = ""
+            saveUserData(data)
+
+            setAvatarImage("")
+            AvatarBox:Set("")
+            Library:Notify("{gray}Avatar cleared.{/gray}", 3)
+        end,
+    })
+
+    return UITab
+end
+
     return Window
 end
 
