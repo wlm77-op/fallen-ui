@@ -13,6 +13,7 @@ local Library = {
     Tabs         = {},
     _connections = {},
     _configItems = {},
+    _keybindEntries = {},
 }
 
 local HttpService      = game:GetService("HttpService")
@@ -390,6 +391,187 @@ function Library:Notify(text, duration)
     spawnNotif(text, duration)
 end
 
+-- ─────────────────────────────────────────────
+-- KEYBIND LIST PANEL
+-- ─────────────────────────────────────────────
+
+local KeybindListGui = Instance.new("ScreenGui")
+KeybindListGui.Name            = "KeybindList"
+KeybindListGui.Parent          = CoreGui
+KeybindListGui.ResetOnSpawn    = false
+KeybindListGui.IgnoreGuiInset  = true
+KeybindListGui.ZIndexBehavior  = Enum.ZIndexBehavior.Global
+KeybindListGui.Enabled         = false
+
+local KL_W = 200
+
+local KLFrame = CreateObj("Frame", {
+    Parent           = KeybindListGui,
+    BackgroundColor3 = Library.Configuration.Background,
+    BorderSizePixel  = 0,
+    AnchorPoint      = Vector2.new(0, 0),
+    Position         = UDim2.new(1, -(KL_W + 12), 0, 12),
+    Size             = UDim2.new(0, KL_W, 0, 0),
+    AutomaticSize    = Enum.AutomaticSize.Y,
+    ClipsDescendants = false,
+})
+
+CreateObj("UIStroke", {
+    Parent          = KLFrame,
+    Color           = Library.Configuration.Accent,
+    Thickness       = 1,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+})
+
+CreateObj("UIPadding", {
+    Parent        = KLFrame,
+    PaddingLeft   = UDim.new(0, 6),
+    PaddingRight  = UDim.new(0, 6),
+    PaddingTop    = UDim.new(0, 6),
+    PaddingBottom = UDim.new(0, 6),
+})
+
+local KLList = CreateObj("Frame", {
+    Parent            = KLFrame,
+    BackgroundTransparency = 1,
+    BorderSizePixel   = 0,
+    Size              = UDim2.new(1, 0, 0, 0),
+    AutomaticSize     = Enum.AutomaticSize.Y,
+})
+
+CreateObj("UIListLayout", {
+    Parent              = KLList,
+    FillDirection       = Enum.FillDirection.Vertical,
+    HorizontalAlignment = Enum.HorizontalAlignment.Left,
+    VerticalAlignment   = Enum.VerticalAlignment.Top,
+    Padding             = UDim.new(0, 4),
+    SortOrder           = Enum.SortOrder.LayoutOrder,
+})
+
+-- Dragging for keybind panel
+do
+    local klDragging       = false
+    local klDragStartMouse = Vector2.new()
+    local klDragStartPos   = UDim2.new()
+
+    trackConn(UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+        if not KeybindListGui.Enabled then return end
+        local mouse = Vector2.new(input.Position.X, input.Position.Y)
+        local abs   = KLFrame.AbsolutePosition
+        local size  = KLFrame.AbsoluteSize
+        if mouse.X >= abs.X and mouse.X <= abs.X + size.X
+        and mouse.Y >= abs.Y and mouse.Y <= abs.Y + size.Y then
+            klDragging       = true
+            klDragStartMouse = mouse
+            klDragStartPos   = KLFrame.Position
+        end
+    end))
+
+    trackConn(UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            klDragging = false
+        end
+    end))
+
+    trackConn(UserInputService.InputChanged:Connect(function(input)
+        if not klDragging then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+        local delta      = Vector2.new(input.Position.X, input.Position.Y) - klDragStartMouse
+        local screenSize = KeybindListGui.AbsoluteSize
+        local frameSize  = KLFrame.AbsoluteSize
+        local originX    = klDragStartPos.X.Scale * screenSize.X + klDragStartPos.X.Offset
+        local originY    = klDragStartPos.Y.Scale * screenSize.Y + klDragStartPos.Y.Offset
+        local newX       = math.clamp(originX + delta.X, 0, screenSize.X - frameSize.X)
+        local newY       = math.clamp(originY + delta.Y, 0, screenSize.Y - frameSize.Y)
+        KLFrame.Position = UDim2.new(0, newX, 0, newY)
+    end))
+end
+
+-- Register a keybind entry into the panel
+-- title: display name, getKey: fn()->KeyCode, getState: fn()->bool or nil
+function Library:_registerKeybindEntry(title, getKey, getState)
+    local entryIndex = #self._keybindEntries + 1
+
+    local Row = CreateObj("Frame", {
+        Parent                 = KLList,
+        BackgroundTransparency = 1,
+        BorderSizePixel        = 0,
+        Size                   = UDim2.new(1, 0, 0, 14),
+        LayoutOrder            = entryIndex,
+    })
+
+    local KeyLabel = CreateObj("TextLabel", {
+        Parent                 = Row,
+        BackgroundTransparency = 1,
+        AnchorPoint            = Vector2.new(1, 0.5),
+        Position               = UDim2.new(1, 0, 0.5, 0),
+        Size                   = UDim2.new(0, 38, 1, 0),
+        Text                   = getKey().Name,
+        TextColor3             = Color3.fromRGB(160, 160, 160),
+        TextSize               = 10,
+        FontFace               = UIFont,
+        TextXAlignment         = Enum.TextXAlignment.Right,
+        TextYAlignment         = Enum.TextYAlignment.Center,
+    })
+
+    local TitleLabel = CreateObj("TextLabel", {
+        Parent                 = Row,
+        BackgroundTransparency = 1,
+        Position               = UDim2.new(0, 0, 0, 0),
+        Size                   = UDim2.new(1, -42, 1, 0),
+        Text                   = title,
+        TextColor3             = Color3.fromRGB(200, 200, 200),
+        TextSize               = 10,
+        FontFace               = UIFont,
+        TextXAlignment         = Enum.TextXAlignment.Left,
+        TextYAlignment         = Enum.TextYAlignment.Center,
+        TextTruncate           = Enum.TextTruncate.AtEnd,
+    })
+
+    local entry = {
+        row        = Row,
+        keyLabel   = KeyLabel,
+        titleLabel = TitleLabel,
+        getKey     = getKey,
+        getState   = getState,
+    }
+
+    table.insert(self._keybindEntries, entry)
+
+    -- Poll loop: update key name + state color every 0.1s
+    task.spawn(function()
+        while Row and Row.Parent do
+            local keyName = getKey().Name
+            if KeyLabel.Text ~= keyName then
+                KeyLabel.Text = keyName
+            end
+            if getState then
+                local active = getState()
+                TitleLabel.TextColor3 = active
+                    and Color3.fromRGB(68, 255, 136)
+                    or  Color3.fromRGB(200, 200, 200)
+            end
+            task.wait(0.1)
+        end
+    end)
+
+    return entry
+end
+
+function Library:SetKeybindList()
+    -- no-op: panel is built at startup, entries auto-register via _registerKeybindEntry
+    -- call this if you want to force-show after setup
+    KeybindListGui.Enabled = true
+end
+
+function Library:KeybindListVisible(visible)
+    KeybindListGui.Enabled = visible == true
+end
+
+-- ─────────────────────────────────────────────
+
 local function hsvToRgb(h, s, v)
     if s == 0 then return v, v, v end
     local i = math.floor(h * 6)
@@ -436,6 +618,7 @@ local function applyBackground(color)
             f.BackgroundColor3 = color
         end
     end
+    KLFrame.BackgroundColor3 = color
 end
 
 local function applyInner(color)
@@ -467,6 +650,11 @@ local function applyAccent(color)
         end
         if s:IsA("ScrollingFrame") then
             s.ScrollBarImageColor3 = color
+        end
+    end
+    for _, s in ipairs(KeybindListGui:GetDescendants()) do
+        if s:IsA("UIStroke") then
+            s.Color = color
         end
     end
 end
@@ -814,6 +1002,7 @@ function Library:CreateWindow(Params)
         Library._connections = {}
         ScreenGui:Destroy()
         NotifGui:Destroy()
+        KeybindListGui:Destroy()
     end
 
     trackConn(UserInputService.InputBegan:Connect(function(input, processed)
@@ -1046,11 +1235,16 @@ function Library:CreateWindow(Params)
                 end
 
                 function TitleObj:AddKeyPicker(KParams)
-                    local DefaultKey = KParams.Key      or Enum.KeyCode.E
-                    local KCallback  = KParams.Function or function() end
-                    local CurrentKey = DefaultKey
-                    local Listening  = false
-                    local kpCfgId    = nextId("keypicker_title")
+                    local DefaultKey  = KParams.Key      or Enum.KeyCode.E
+                    local KCallback   = KParams.Function or function() end
+                    local KTitle      = KParams.Title    or nil
+                    local CurrentKey  = DefaultKey
+                    local Listening   = false
+                    local kpCfgId     = nextId("keypicker_title")
+
+                    -- getState: nil here since TitleObj has no toggle state
+                    -- user can pass a getState fn if they close over it manually
+                    local getStateFn  = KParams.GetState or nil
 
                     shrinkTitle(36)
 
@@ -1137,6 +1331,14 @@ function Library:CreateWindow(Params)
                             end
                         end
                     )
+
+                    if KTitle then
+                        Library:_registerKeybindEntry(
+                            KTitle,
+                            function() return CurrentKey end,
+                            getStateFn
+                        )
+                    end
 
                     return KP
                 end
@@ -1609,6 +1811,7 @@ function Library:CreateWindow(Params)
                 function Toggle:AddKeyPicker(KParams)
                     local DefaultKey = KParams.Key      or Enum.KeyCode.E
                     local KCallback  = KParams.Function or function() end
+                    local KTitle     = KParams.Title    or nil
                     local CurrentKey = DefaultKey
                     local Listening  = false
                     local kpCfgId    = nextId("keypicker_toggle_" .. Title)
@@ -1698,6 +1901,15 @@ function Library:CreateWindow(Params)
                             end
                         end
                     )
+
+                    -- Auto-register into keybind list if Title provided
+                    if KTitle then
+                        Library:_registerKeybindEntry(
+                            KTitle,
+                            function() return CurrentKey end,
+                            function() return State end
+                        )
+                    end
 
                     return KP
                 end
