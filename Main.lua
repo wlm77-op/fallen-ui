@@ -1,14 +1,14 @@
 local Library = {
     Configuration = {
-        Background   = Color3.fromRGB(25, 25, 25),
-        Accent       = Color3.fromRGB(44, 44, 44),
-        Inner        = Color3.fromRGB(17, 17, 17),
-        TopBar       = Color3.fromRGB(13, 13, 13),
-        TabActive    = Color3.fromRGB(35, 35, 35),
-        TabInactive  = Color3.fromRGB(13, 13, 13),
+        Background   = Color3.fromRGB(12, 12, 12),
+        Accent       = Color3.fromRGB(30, 30, 30),
+        Inner        = Color3.fromRGB(8, 8, 8),
+        TopBar       = Color3.fromRGB(6, 6, 6),
+        TabActive    = Color3.fromRGB(20, 20, 20),
+        TabInactive  = Color3.fromRGB(6, 6, 6),
         TabText      = Color3.fromRGB(255, 255, 255),
-        TabTextDim   = Color3.fromRGB(120, 120, 120),
-        ActiveToggle = Color3.fromRGB(120, 120, 120),
+        TabTextDim   = Color3.fromRGB(90, 90, 90),
+        ActiveToggle = Color3.fromRGB(90, 90, 90),
     },
     Tabs         = {},
     _connections = {},
@@ -345,7 +345,7 @@ local function spawnNotif(rawText, duration)
 
     local BarTrack = CreateObj("Frame", {
         Parent           = Card,
-        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+        BackgroundColor3 = Color3.fromRGB(5, 5, 5),
         BorderSizePixel  = 0,
         AnchorPoint      = Vector2.new(0, 1),
         Position         = UDim2.new(0, 2, 1, 0),
@@ -391,10 +391,6 @@ function Library:Notify(text, duration)
     spawnNotif(text, duration)
 end
 
--- ─────────────────────────────────────────────
--- KEYBIND LIST PANEL
--- ─────────────────────────────────────────────
-
 local KeybindListGui = Instance.new("ScreenGui")
 KeybindListGui.Name            = "KeybindList"
 KeybindListGui.Parent          = CoreGui
@@ -410,8 +406,8 @@ local KLFrame = CreateObj("Frame", {
     BackgroundColor3 = Library.Configuration.Background,
     BorderSizePixel  = 0,
     AnchorPoint      = Vector2.new(0, 0),
-    Position         = UDim2.new(1, -(KL_W + 12), 0, 12),
-    Size             = UDim2.new(0, KL_W, 0, 0),
+    Position         = UDim2.new(1, -(KL_W + 22), 0, 12),
+    Size             = UDim2.new(0, KL_W + 20, 0, 0),
     AutomaticSize    = Enum.AutomaticSize.Y,
     ClipsDescendants = false,
 })
@@ -423,8 +419,42 @@ CreateObj("UIStroke", {
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 })
 
+CreateObj("TextLabel", {
+    Parent                 = KLFrame,
+    BackgroundTransparency = 1,
+    AnchorPoint            = Vector2.new(0.5, 0),
+    Position               = UDim2.new(0.5, 0, 0, 6),
+    Size                   = UDim2.new(1, -10, 0, 14),
+    Text                   = "Keybinds",
+    TextColor3             = Color3.fromRGB(255, 255, 255),
+    TextSize               = 12,
+    FontFace               = UIFont,
+    TextXAlignment         = Enum.TextXAlignment.Center,
+    TextYAlignment         = Enum.TextYAlignment.Center,
+    RichText               = false,
+})
+
+local KLInner = CreateObj("Frame", {
+    Name             = "InnerFrame",
+    Parent           = KLFrame,
+    BackgroundColor3 = Library.Configuration.Inner,
+    BorderSizePixel  = 0,
+    AnchorPoint      = Vector2.new(0.5, 0),
+    Position         = UDim2.new(0.5, 0, 0, 26),
+    Size             = UDim2.new(1, -20, 0, 0),
+    AutomaticSize    = Enum.AutomaticSize.Y,
+    ClipsDescendants = false,
+})
+
+CreateObj("UIStroke", {
+    Parent          = KLInner,
+    Color           = Library.Configuration.Accent,
+    Thickness       = 1,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+})
+
 CreateObj("UIPadding", {
-    Parent        = KLFrame,
+    Parent        = KLInner,
     PaddingLeft   = UDim.new(0, 6),
     PaddingRight  = UDim.new(0, 6),
     PaddingTop    = UDim.new(0, 6),
@@ -432,11 +462,11 @@ CreateObj("UIPadding", {
 })
 
 local KLList = CreateObj("Frame", {
-    Parent            = KLFrame,
+    Parent                 = KLInner,
     BackgroundTransparency = 1,
-    BorderSizePixel   = 0,
-    Size              = UDim2.new(1, 0, 0, 0),
-    AutomaticSize     = Enum.AutomaticSize.Y,
+    BorderSizePixel        = 0,
+    Size                   = UDim2.new(1, 0, 0, 0),
+    AutomaticSize          = Enum.AutomaticSize.Y,
 })
 
 CreateObj("UIListLayout", {
@@ -448,7 +478,6 @@ CreateObj("UIListLayout", {
     SortOrder           = Enum.SortOrder.LayoutOrder,
 })
 
--- Dragging for keybind panel
 do
     local klDragging       = false
     local klDragStartMouse = Vector2.new()
@@ -489,8 +518,6 @@ do
     end))
 end
 
--- Register a keybind entry into the panel
--- title: display name, getKey: fn()->KeyCode, getState: fn()->bool or nil
 function Library:_registerKeybindEntry(title, getKey, getState)
     local entryIndex = #self._keybindEntries + 1
 
@@ -509,7 +536,7 @@ function Library:_registerKeybindEntry(title, getKey, getState)
         Position               = UDim2.new(1, 0, 0.5, 0),
         Size                   = UDim2.new(0, 38, 1, 0),
         Text                   = getKey().Name,
-        TextColor3             = Color3.fromRGB(160, 160, 160),
+        TextColor3             = Color3.fromRGB(120, 120, 120),
         TextSize               = 10,
         FontFace               = UIFont,
         TextXAlignment         = Enum.TextXAlignment.Right,
@@ -522,7 +549,7 @@ function Library:_registerKeybindEntry(title, getKey, getState)
         Position               = UDim2.new(0, 0, 0, 0),
         Size                   = UDim2.new(1, -42, 1, 0),
         Text                   = title,
-        TextColor3             = Color3.fromRGB(200, 200, 200),
+        TextColor3             = Color3.fromRGB(180, 180, 180),
         TextSize               = 10,
         FontFace               = UIFont,
         TextXAlignment         = Enum.TextXAlignment.Left,
@@ -540,7 +567,6 @@ function Library:_registerKeybindEntry(title, getKey, getState)
 
     table.insert(self._keybindEntries, entry)
 
-    -- Poll loop: update key name + state color every 0.1s
     task.spawn(function()
         while Row and Row.Parent do
             local keyName = getKey().Name
@@ -551,7 +577,7 @@ function Library:_registerKeybindEntry(title, getKey, getState)
                 local active = getState()
                 TitleLabel.TextColor3 = active
                     and Color3.fromRGB(68, 255, 136)
-                    or  Color3.fromRGB(200, 200, 200)
+                    or  Color3.fromRGB(180, 180, 180)
             end
             task.wait(0.1)
         end
@@ -561,16 +587,12 @@ function Library:_registerKeybindEntry(title, getKey, getState)
 end
 
 function Library:SetKeybindList()
-    -- no-op: panel is built at startup, entries auto-register via _registerKeybindEntry
-    -- call this if you want to force-show after setup
     KeybindListGui.Enabled = true
 end
 
 function Library:KeybindListVisible(visible)
     KeybindListGui.Enabled = visible == true
 end
-
--- ─────────────────────────────────────────────
 
 local function hsvToRgb(h, s, v)
     if s == 0 then return v, v, v end
@@ -631,6 +653,7 @@ local function applyInner(color)
             f.BackgroundColor3 = color
         end
     end
+    KLInner.BackgroundColor3 = color
 end
 
 local function applyTopBar(color)
@@ -963,7 +986,7 @@ function Library:CreateWindow(Params)
             BackgroundTransparency = 1,
             Size                   = UDim2.new(1, 0, 0, 14),
             Text                   = Clogs[i],
-            TextColor3             = Color3.fromRGB(160, 160, 160),
+            TextColor3             = Color3.fromRGB(120, 120, 120),
             TextSize               = 12,
             FontFace               = UIFont,
             TextXAlignment         = Enum.TextXAlignment.Left,
@@ -1115,7 +1138,7 @@ function Library:CreateWindow(Params)
 
             local WrapperFrame = CreateObj("Frame", {
                 Parent           = parent,
-                BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                 BorderSizePixel  = 0,
                 Size             = UDim2.new(1, 0, 0, 0),
                 AutomaticSize    = Enum.AutomaticSize.Y,
@@ -1132,7 +1155,7 @@ function Library:CreateWindow(Params)
 
             local BoxFrame = CreateObj("Frame", {
                 Parent           = WrapperFrame,
-                BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                 BorderSizePixel  = 0,
                 Position         = UDim2.new(0, 1, 0, 1),
                 Size             = UDim2.new(1, -2, 0, 0),
@@ -1163,7 +1186,7 @@ function Library:CreateWindow(Params)
                     BackgroundTransparency = 1,
                     Size                   = UDim2.new(1, 0, 0, 14),
                     Text                   = label,
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -1210,7 +1233,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(0, 0, 0, 0),
                     Size                   = UDim2.new(1, 0, 1, 0),
                     Text                   = text or "",
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -1241,16 +1264,13 @@ function Library:CreateWindow(Params)
                     local CurrentKey  = DefaultKey
                     local Listening   = false
                     local kpCfgId     = nextId("keypicker_title")
-
-                    -- getState: nil here since TitleObj has no toggle state
-                    -- user can pass a getState fn if they close over it manually
                     local getStateFn  = KParams.GetState or nil
 
                     shrinkTitle(36)
 
                     local KBox = CreateObj("Frame", {
                         Parent           = Row,
-                        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                        BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                         BorderSizePixel  = 0,
                         AnchorPoint      = Vector2.new(1, 0.5),
                         Position         = UDim2.new(1, 0, 0.5, 0),
@@ -1270,7 +1290,7 @@ function Library:CreateWindow(Params)
                         BackgroundTransparency = 1,
                         Size                   = UDim2.new(1, 0, 1, 0),
                         Text                   = DefaultKey.Name,
-                        TextColor3             = Color3.fromRGB(160, 160, 160),
+                        TextColor3             = Color3.fromRGB(120, 120, 120),
                         TextSize               = 9,
                         FontFace               = UIFont,
                         TextXAlignment         = Enum.TextXAlignment.Center,
@@ -1292,14 +1312,14 @@ function Library:CreateWindow(Params)
                         if Listening then return end
                         Listening         = true
                         KLabel.Text       = "..."
-                        KLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        KLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
                         local conn
                         conn = UserInputService.InputBegan:Connect(function(input, processed)
                             if processed then return end
                             if input.UserInputType == Enum.UserInputType.Keyboard then
                                 CurrentKey        = input.KeyCode
                                 KLabel.Text       = input.KeyCode.Name
-                                KLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+                                KLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
                                 Listening         = false
                                 conn:Disconnect()
                             end
@@ -1344,7 +1364,7 @@ function Library:CreateWindow(Params)
                 end
 
                 function TitleObj:AddColorPicker(CParams)
-                    local DefaultColor = CParams.Default or CParams.Defualt or Color3.fromRGB(200, 200, 200)
+                    local DefaultColor = CParams.Default or CParams.Defualt or Color3.fromRGB(180, 180, 180)
                     local CCallback    = CParams.Function or function() end
                     local ch, cs, cv   = rgbToHsv(DefaultColor.R, DefaultColor.G, DefaultColor.B)
                     local CurrentColor = DefaultColor
@@ -1387,7 +1407,7 @@ function Library:CreateWindow(Params)
                     local function buildPopup()
                         popupFrame = CreateObj("Frame", {
                             Parent           = ScreenGui,
-                            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+                            BackgroundColor3 = Color3.fromRGB(8, 8, 8),
                             BorderSizePixel  = 0,
                             Size             = UDim2.new(0, PW + 16, 0, POPUP_H),
                             Position         = UDim2.new(0, 0, 0, 0),
@@ -1669,11 +1689,11 @@ function Library:CreateWindow(Params)
 
                 local Btn = CreateObj("TextButton", {
                     Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                    BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                     BorderSizePixel  = 0,
                     Size             = UDim2.new(1, 0, 1, 0),
                     Text             = Title,
-                    TextColor3       = Color3.fromRGB(200, 200, 200),
+                    TextColor3       = Color3.fromRGB(180, 180, 180),
                     TextSize         = 12,
                     FontFace         = UIFont,
                     TextXAlignment   = Enum.TextXAlignment.Center,
@@ -1726,7 +1746,7 @@ function Library:CreateWindow(Params)
 
                 local CheckBox = CreateObj("Frame", {
                     Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                    BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                     BorderSizePixel  = 0,
                     AnchorPoint      = Vector2.new(0, 0.5),
                     Position         = UDim2.new(0, 0, 0.5, 0),
@@ -1757,7 +1777,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(0, 18, 0, 0),
                     Size                   = UDim2.new(1, -18, 1, 0),
                     Text                   = Title,
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -1820,7 +1840,7 @@ function Library:CreateWindow(Params)
 
                     local KBox = CreateObj("Frame", {
                         Parent           = Row,
-                        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                        BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                         BorderSizePixel  = 0,
                         AnchorPoint      = Vector2.new(1, 0.5),
                         Position         = UDim2.new(1, -(rightOffset - 36), 0.5, 0),
@@ -1840,7 +1860,7 @@ function Library:CreateWindow(Params)
                         BackgroundTransparency = 1,
                         Size                   = UDim2.new(1, 0, 1, 0),
                         Text                   = DefaultKey.Name,
-                        TextColor3             = Color3.fromRGB(160, 160, 160),
+                        TextColor3             = Color3.fromRGB(120, 120, 120),
                         TextSize               = 9,
                         FontFace               = UIFont,
                         TextXAlignment         = Enum.TextXAlignment.Center,
@@ -1862,14 +1882,14 @@ function Library:CreateWindow(Params)
                         if Listening then return end
                         Listening         = true
                         KLabel.Text       = "..."
-                        KLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        KLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
                         local conn
                         conn = UserInputService.InputBegan:Connect(function(input, processed)
                             if processed then return end
                             if input.UserInputType == Enum.UserInputType.Keyboard then
                                 CurrentKey        = input.KeyCode
                                 KLabel.Text       = input.KeyCode.Name
-                                KLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+                                KLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
                                 Listening         = false
                                 conn:Disconnect()
                             end
@@ -1902,7 +1922,6 @@ function Library:CreateWindow(Params)
                         end
                     )
 
-                    -- Auto-register into keybind list if Title provided
                     if KTitle then
                         Library:_registerKeybindEntry(
                             KTitle,
@@ -1915,7 +1934,7 @@ function Library:CreateWindow(Params)
                 end
 
                 function Toggle:AddColorPicker(CParams)
-                    local DefaultColor = CParams.Defualt or CParams.Default or Color3.fromRGB(255, 255, 255)
+                    local DefaultColor = CParams.Defualt or CParams.Default or Color3.fromRGB(180, 180, 180)
                     local CCallback    = CParams.Function or function() end
                     local h, s, v      = rgbToHsv(DefaultColor.R, DefaultColor.G, DefaultColor.B)
                     local CurrentColor = DefaultColor
@@ -1958,7 +1977,7 @@ function Library:CreateWindow(Params)
                     local function buildPopup()
                         popupFrame = CreateObj("Frame", {
                             Parent           = ScreenGui,
-                            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+                            BackgroundColor3 = Color3.fromRGB(8, 8, 8),
                             BorderSizePixel  = 0,
                             Size             = UDim2.new(0, PW + 16, 0, POPUP_H),
                             Position         = UDim2.new(0, 0, 0, 0),
@@ -2258,7 +2277,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(0, 0, 0, 0),
                     Size                   = UDim2.new(0.6, 0, 1, 0),
                     Text                   = Title,
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -2272,7 +2291,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(0.6, 0, 0, 0),
                     Size                   = UDim2.new(0.4, 0, 1, 0),
                     Text                   = tostring(Value) .. "/" .. tostring(Max),
-                    TextColor3             = Color3.fromRGB(160, 160, 160),
+                    TextColor3             = Color3.fromRGB(120, 120, 120),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Right,
@@ -2282,7 +2301,7 @@ function Library:CreateWindow(Params)
 
                 local Track = CreateObj("Frame", {
                     Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                    BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                     BorderSizePixel  = 0,
                     Position         = UDim2.new(0, 0, 0, 18),
                     Size             = UDim2.new(1, 0, 0, 12),
@@ -2397,7 +2416,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(0, 0, 0, 0),
                     Size                   = UDim2.new(1, 0, 0, 14),
                     Text                   = Title,
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -2407,7 +2426,7 @@ function Library:CreateWindow(Params)
 
                 local InputFrame = CreateObj("Frame", {
                     Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                    BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                     BorderSizePixel  = 0,
                     Position         = UDim2.new(0, 0, 0, 18),
                     Size             = UDim2.new(1, 0, 0, 16),
@@ -2428,8 +2447,8 @@ function Library:CreateWindow(Params)
                     Size                   = UDim2.new(1, -12, 1, 0),
                     Text                   = Default,
                     PlaceholderText        = InputText,
-                    PlaceholderColor3      = Color3.fromRGB(80, 80, 80),
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    PlaceholderColor3      = Color3.fromRGB(50, 50, 50),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -2521,7 +2540,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(0, 0, 0, 0),
                     Size                   = UDim2.new(1, 0, 0, 14),
                     Text                   = Title,
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -2531,7 +2550,7 @@ function Library:CreateWindow(Params)
 
                 local Head = CreateObj("Frame", {
                     Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                    BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                     BorderSizePixel  = 0,
                     Position         = UDim2.new(0, 0, 0, 18),
                     Size             = UDim2.new(1, 0, 0, 16),
@@ -2551,7 +2570,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(0, 6, 0, 0),
                     Size                   = UDim2.new(1, -20, 1, 0),
                     Text                   = buildHeaderText(),
-                    TextColor3             = Color3.fromRGB(200, 200, 200),
+                    TextColor3             = Color3.fromRGB(180, 180, 180),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Left,
@@ -2568,7 +2587,7 @@ function Library:CreateWindow(Params)
                     Position               = UDim2.new(1, -6, 0.5, 0),
                     Size                   = UDim2.new(0, 12, 1, 0),
                     Text                   = "+",
-                    TextColor3             = Color3.fromRGB(160, 160, 160),
+                    TextColor3             = Color3.fromRGB(120, 120, 120),
                     TextSize               = 12,
                     FontFace               = UIFont,
                     TextXAlignment         = Enum.TextXAlignment.Right,
@@ -2588,7 +2607,7 @@ function Library:CreateWindow(Params)
 
                 local ListFrame = CreateObj("Frame", {
                     Parent           = Row,
-                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                    BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                     BorderSizePixel  = 0,
                     Position         = UDim2.new(0, 0, 0, 38),
                     Size             = UDim2.new(1, 0, 0, 0),
@@ -2635,8 +2654,8 @@ function Library:CreateWindow(Params)
                     ValueLabel.Text = tostring(val)
                     for k, btn in pairs(optionButtons) do
                         btn.TextColor3 = (k == val)
-                            and Color3.fromRGB(255, 255, 255)
-                            or  Color3.fromRGB(160, 160, 160)
+                            and Color3.fromRGB(220, 220, 220)
+                            or  Color3.fromRGB(120, 120, 120)
                     end
                     Callback(val)
                     closeList()
@@ -2647,8 +2666,8 @@ function Library:CreateWindow(Params)
                     local btn = optionButtons[val]
                     if btn then
                         btn.TextColor3 = selectedSet[val]
-                            and Color3.fromRGB(255, 255, 255)
-                            or  Color3.fromRGB(160, 160, 160)
+                            and Color3.fromRGB(220, 220, 220)
+                            or  Color3.fromRGB(120, 120, 120)
                     end
                     ValueLabel.Text = buildHeaderText()
                     local out = {}
@@ -2666,13 +2685,13 @@ function Library:CreateWindow(Params)
 
                         local OptBtn = CreateObj("TextButton", {
                             Parent           = ListFrame,
-                            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                            BackgroundColor3 = Color3.fromRGB(5, 5, 5),
                             BorderSizePixel  = 0,
                             Size             = UDim2.new(1, 0, 0, 16),
                             Text             = tostring(val),
                             TextColor3       = isActive
-                                and Color3.fromRGB(255, 255, 255)
-                                or  Color3.fromRGB(160, 160, 160),
+                                and Color3.fromRGB(220, 220, 220)
+                                or  Color3.fromRGB(120, 120, 120),
                             TextSize         = 12,
                             FontFace         = UIFont,
                             TextXAlignment   = Enum.TextXAlignment.Left,
@@ -2715,8 +2734,8 @@ function Library:CreateWindow(Params)
                         end
                         for k, btn in pairs(optionButtons) do
                             btn.TextColor3 = selectedSet[k]
-                                and Color3.fromRGB(255, 255, 255)
-                                or  Color3.fromRGB(160, 160, 160)
+                                and Color3.fromRGB(220, 220, 220)
+                                or  Color3.fromRGB(120, 120, 120)
                         end
                         ValueLabel.Text = buildHeaderText()
                         local out = {}
@@ -2946,36 +2965,36 @@ function Library:CreateWindow(Params)
             local ThemeBox = UITab:AddLeftBox("Theme")
 
             local PRESETS = {
+                Abyss = {
+                    Background   = Color3.fromRGB(6,  6,  6),
+                    Inner        = Color3.fromRGB(3,  3,  3),
+                    TopBar       = Color3.fromRGB(2,  2,  2),
+                    Accent       = Color3.fromRGB(28, 28, 28),
+                    TabActive    = Color3.fromRGB(14, 14, 14),
+                    TabInactive  = Color3.fromRGB(4,  4,  4),
+                    ActiveToggle = Color3.fromRGB(70, 70, 70),
+                },
                 Midnight = {
-                    Background   = Color3.fromRGB(10,  10,  18),
-                    Inner        = Color3.fromRGB(6,   6,   14),
-                    TopBar       = Color3.fromRGB(4,   4,   10),
-                    Accent       = Color3.fromRGB(60,  60,  120),
-                    TabActive    = Color3.fromRGB(25,  25,  60),
-                    TabInactive  = Color3.fromRGB(8,   8,   20),
-                    ActiveToggle = Color3.fromRGB(80,  80,  200),
+                    Background   = Color3.fromRGB(8,  8,  16),
+                    Inner        = Color3.fromRGB(4,  4,  10),
+                    TopBar       = Color3.fromRGB(3,  3,  8),
+                    Accent       = Color3.fromRGB(35, 35, 70),
+                    TabActive    = Color3.fromRGB(16, 16, 40),
+                    TabInactive  = Color3.fromRGB(5,  5,  14),
+                    ActiveToggle = Color3.fromRGB(60, 60, 160),
                 },
-                Sunday = {
-                    Background   = Color3.fromRGB(245, 238, 225),
-                    Inner        = Color3.fromRGB(235, 228, 210),
-                    TopBar       = Color3.fromRGB(220, 210, 190),
-                    Accent       = Color3.fromRGB(180, 140, 90),
-                    TabActive    = Color3.fromRGB(210, 190, 155),
-                    TabInactive  = Color3.fromRGB(230, 220, 200),
-                    ActiveToggle = Color3.fromRGB(200, 150, 80),
-                },
-                Colorful = {
-                    Background   = Color3.fromRGB(20,  10,  30),
-                    Inner        = Color3.fromRGB(14,  6,   22),
-                    TopBar       = Color3.fromRGB(10,  4,   18),
-                    Accent       = Color3.fromRGB(180, 40,  220),
-                    TabActive    = Color3.fromRGB(60,  10,  90),
-                    TabInactive  = Color3.fromRGB(20,  4,   35),
-                    ActiveToggle = Color3.fromRGB(100, 200, 255),
+                Ember = {
+                    Background   = Color3.fromRGB(14, 6,  4),
+                    Inner        = Color3.fromRGB(8,  3,  2),
+                    TopBar       = Color3.fromRGB(5,  2,  1),
+                    Accent       = Color3.fromRGB(50, 18, 10),
+                    TabActive    = Color3.fromRGB(28, 10, 6),
+                    TabInactive  = Color3.fromRGB(8,  3,  2),
+                    ActiveToggle = Color3.fromRGB(160, 40, 20),
                 },
             }
 
-            local PRESET_NAMES   = { "Midnight", "Sunday", "Colorful" }
+            local PRESET_NAMES   = { "Abyss", "Midnight", "Ember" }
             local selectedPreset = PRESET_NAMES[1]
 
             local applyMap = {
@@ -3078,7 +3097,7 @@ function Library:CreateWindow(Params)
 
         local AvatarFrame = CreateObj("Frame", {
             Parent           = RightBox.Content,
-            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BackgroundColor3 = Color3.fromRGB(5, 5, 5),
             BorderSizePixel  = 0,
             Size             = UDim2.new(1, 0, 0, 80),
             LayoutOrder      = 0,
@@ -3109,7 +3128,7 @@ function Library:CreateWindow(Params)
             Position               = UDim2.new(0.5, 0, 0.5, 0),
             Size                   = UDim2.new(1, 0, 1, 0),
             Text                   = "No Avatar",
-            TextColor3             = Color3.fromRGB(80, 80, 80),
+            TextColor3             = Color3.fromRGB(50, 50, 50),
             TextSize               = 12,
             FontFace               = UIFont,
             TextXAlignment         = Enum.TextXAlignment.Center,
@@ -3173,10 +3192,8 @@ function Library:CreateWindow(Params)
                     Library:Notify("{yellow}Already logged in. Logout first.{/yellow}", 3)
                     return
                 end
-
                 local username = NickBox:Get():match("^%s*(.-)%s*$")
                 local password = PassBox:Get():match("^%s*(.-)%s*$")
-
                 if username == "" then
                     Library:Notify("{red}Username cannot be empty.{/red}", 3)
                     return
@@ -3193,13 +3210,11 @@ function Library:CreateWindow(Params)
                     Library:Notify("{red}Password must be at least 6 characters.{/red}", 3)
                     return
                 end
-
                 local existing, _ = loadUserData()
                 if existing then
                     Library:Notify("{yellow}Account already exists. Use Login.{/yellow}", 3)
                     return
                 end
-
                 local uid  = generateUID()
                 local data = {
                     uid           = uid,
@@ -3210,7 +3225,6 @@ function Library:CreateWindow(Params)
                     registered_at = os.time(),
                     last_login    = os.time(),
                 }
-
                 local ok, err = saveUserData(data)
                 if ok then
                     isLoggedIn = true
@@ -3229,15 +3243,12 @@ function Library:CreateWindow(Params)
                     Library:Notify("{yellow}Already logged in.{/yellow}", 3)
                     return
                 end
-
                 local username = NickBox:Get():match("^%s*(.-)%s*$")
                 local password = PassBox:Get():match("^%s*(.-)%s*$")
-
                 if username == "" or password == "" then
                     Library:Notify("{red}Fill in both fields.{/red}", 3)
                     return
                 end
-
                 local data, err = loadUserData()
                 if not data then
                     Library:Notify("{red}No account found: " .. tostring(err) .. "{/red}", 3)
@@ -3251,13 +3262,11 @@ function Library:CreateWindow(Params)
                     Library:Notify("{red}Wrong password.{/red}", 3)
                     return
                 end
-
                 data.last_login = os.time()
                 local ok, serr  = saveUserData(data)
                 if not ok then
                     Library:Notify("{yellow}Login ok but save failed: " .. tostring(serr) .. "{/yellow}", 3)
                 end
-
                 isLoggedIn = true
                 showUserInfo(data)
                 Library:Notify("{green}Welcome back, " .. username .. "!{/green}", 4)
@@ -3272,7 +3281,7 @@ function Library:CreateWindow(Params)
                     return
                 end
                 isLoggedIn = false
-                setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
+                setStatus("Not logged in", Color3.fromRGB(180, 180, 180))
                 UIDTitle:SetText("")
                 UsernameTitle:SetText("")
                 setAvatarImage("")
@@ -3287,11 +3296,9 @@ function Library:CreateWindow(Params)
                     Library:Notify("{yellow}Not logged in.{/yellow}", 3)
                     return
                 end
-
                 pcall(function()
                     if isfile(USER_FILE) then delfile(USER_FILE) end
                 end)
-
                 local avatarFiles = {
                     "UserAvatar.jpg", "UserAvatar.png",
                     "UserAvatar.jpeg", "UserAvatar.webp",
@@ -3301,9 +3308,8 @@ function Library:CreateWindow(Params)
                         if isfile(f) then delfile(f) end
                     end)
                 end
-
                 isLoggedIn = false
-                setStatus("Not logged in", Color3.fromRGB(200, 200, 200))
+                setStatus("Not logged in", Color3.fromRGB(180, 180, 180))
                 UIDTitle:SetText("")
                 UsernameTitle:SetText("")
                 setAvatarImage("")
@@ -3325,34 +3331,28 @@ function Library:CreateWindow(Params)
                     Library:Notify("{yellow}Login first.{/yellow}", 3)
                     return
                 end
-
                 local url = AvatarBox:Get():match("^%s*(.-)%s*$")
                 if url == "" then
                     Library:Notify("{red}URL cannot be empty.{/red}", 3)
                     return
                 end
-
                 local ext       = url:match("%.(%a+)%??") or ""
                 local validExts = { jpg = true, jpeg = true, png = true, webp = true }
                 if not validExts[ext:lower()] then
                     Library:Notify("{yellow}URL should point to jpg/png/webp.{/yellow}", 4)
                 end
-
                 Library:Notify("{gray}Downloading avatar...{/gray}", 2)
-
                 task.spawn(function()
                     local asset = downloadAvatar(url)
                     if asset == "" then
                         Library:Notify("{red}Download failed. Check the URL.{/red}", 4)
                         return
                     end
-
                     local data, err = loadUserData()
                     if not data then
                         Library:Notify("{red}Could not load account: " .. tostring(err) .. "{/red}", 3)
                         return
                     end
-
                     data.avatar_url   = url
                     data.avatar_asset = asset
                     local ok, serr    = saveUserData(data)
@@ -3360,7 +3360,6 @@ function Library:CreateWindow(Params)
                         Library:Notify("{red}Avatar save failed: " .. tostring(serr) .. "{/red}", 4)
                         return
                     end
-
                     setAvatarImage(asset)
                     Library:Notify("{green}Avatar updated.{/green}", 3)
                 end)
@@ -3374,13 +3373,11 @@ function Library:CreateWindow(Params)
                     Library:Notify("{yellow}Login first.{/yellow}", 3)
                     return
                 end
-
                 local data, err = loadUserData()
                 if not data then
                     Library:Notify("{red}Could not load account: " .. tostring(err) .. "{/red}", 3)
                     return
                 end
-
                 data.avatar_url   = ""
                 data.avatar_asset = ""
                 local ok, serr    = saveUserData(data)
@@ -3388,7 +3385,6 @@ function Library:CreateWindow(Params)
                     Library:Notify("{red}Clear failed: " .. tostring(serr) .. "{/red}", 4)
                     return
                 end
-
                 setAvatarImage("")
                 AvatarBox:Set("")
                 Library:Notify("{gray}Avatar cleared.{/gray}", 3)
